@@ -7,4 +7,4 @@ tests: test
 	./test
 
 test: tests/tests.cpp inc/libQBD.hpp inc/base.hpp inc/stationary.hpp
-	$(CXX) tests/tests.cpp -lboost_unit_test_framework -std=c++11 -Og -g -ffast-math -march=native -o test
+	$(CXX) tests/tests.cpp -lboost_unit_test_framework -std=c++11 -Og -g -march=native -o test

@@ -124,3 +124,32 @@ BOOST_AUTO_TEST_CASE(cluster_model_2_servers)
 	
 	BOOST_CHECK(abs(s - 1) < 1e-15);
 }
+
+BOOST_AUTO_TEST_CASE(M_M_1_model)
+{
+	double l = 2;
+	double m = 3;
+	double rho = l/m;
+	Matrix<double, 1, 1> lambda{{l}};
+	Matrix<double, 1, 1> mu{{m}};
+
+	StationaryDistribution<double> model;
+
+	model.add_zero_level((mMatr)(-lambda), (mMatr)lambda);
+	model.add_level((mMatr)mu,(mMatr)(-lambda - mu),(mMatr)lambda);
+	model.add_level((mMatr)mu,(mMatr)(-lambda - mu),(mMatr)lambda);
+
+	BOOST_CHECK(abs(model.get_mean_clients() - rho/(1-rho)));
+
+	vector<Matrix<double, Dynamic, 1>> queue;
+	Matrix<double, Dynamic, 1> q0{{0}};
+	Matrix<double, Dynamic, 1> q1{{0}};
+	queue.push_back(q0);
+	queue.push_back(q1);
+
+	BOOST_CHECK(abs(model.get_mean_queue(queue) - rho*rho/(1 - rho)) <= 2e-15);
+
+	BOOST_CHECK(abs(model.get_R()(0,0) - rho) < 1e-15);
+
+	
+}

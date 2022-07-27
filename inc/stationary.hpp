@@ -9,10 +9,15 @@
 #ifndef __LIB_QBD_STATIONARY_HPP__
 #define __LIB_QBD_STATIONARY_HPP__
 
+#ifndef LIBQBD_MAX_ERROR
+#define LIBQBD_MAX_ERROR (std::numeric_limits<matrix_element_type>::min())
+#endif
+
 #include "base.hpp"
 #include <cmath>
 #include <algorithm>
 #include <limits>
+#include <iostream>
 
 namespace libQBD
 {
@@ -77,7 +82,7 @@ namespace libQBD
                     W = (I - V_m * V_p - V_p * V_m).colPivHouseholderQr().inverse();
                     G = G0 + U * V_m;
                     T = G - G0;
-                } while (std::max(std::abs(T.maxCoeff()), std::abs(T.minCoeff())) >= std::numeric_limits<matrix_element_type>::min());
+                } while (std::max(std::abs(T.maxCoeff()), std::abs(T.minCoeff())) >= LIBQBD_MAX_ERROR);
                 this->G = G;
                 is_G_computated = true;
             }
@@ -239,9 +244,19 @@ namespace libQBD
             return sum_from_c_to_inf;
         }
 
-        matrix_element_type custom_mean(std::vector<Eigen::Matrix<matrix_element_type, 1, Eigen::Dynamic>> weight_vector)
-        {
 
+        matrix_element_type get_mean_queue(std::vector<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, 1>> queue_size_vector)
+        {
+            matrix_element_type res = 0;
+            computate_pi_0_c();
+            for(unsigned int k = 0; k < (pi_0_c.size() - 1); k++){
+                res += (pi_0_c[k] * queue_size_vector[k])(0,0);
+            }
+            Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> I = R.Identity(R.rows(), R.cols());
+            auto tmp = (I - R).transpose().colPivHouseholderQr();
+            res += (tmp.solve(pi_0_c.back().transpose())*queue_size_vector.back())(0,0);
+            res += tmp.solve(tmp.solve((pi_0_c.back() * R).transpose())).sum();
+            return res;
         }
     };
 } 
