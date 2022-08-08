@@ -18,13 +18,13 @@ namespace libQBD
     template<typename matrix_element_type>
     class  QBD
     {
-    protected:
+    public:
         // Matrices, that describes generator matrix of QBD process
         std::vector<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>> A_plus;
         std::vector<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>> A_0;
         std::vector<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>> A_minus;
 
-    public:
+    
 
         void add_zero_level(
             Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> A_0,

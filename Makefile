@@ -8,3 +8,7 @@ tests: test
 
 test: tests/tests.cpp inc/libQBD.hpp inc/base.hpp inc/stationary.hpp
 	$(CXX) tests/tests.cpp -lboost_unit_test_framework -std=c++11 -Og -g -march=native -o test
+
+# --bug-hunting
+check:
+	cppcheck --enable=all --bug-hunting --language=c++ --max-ctu-depth=100 --std=c++11 .

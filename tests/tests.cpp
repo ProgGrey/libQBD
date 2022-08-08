@@ -89,13 +89,14 @@ BOOST_AUTO_TEST_CASE(cluster_model_2_servers)
 	Matrix<double, 6, 6> An_0 = (-(An_minus.rowwise().sum() +
 		A2_plus.rowwise().sum())).asDiagonal();
 
-
+	QBD<double> process;
 	StationaryDistribution<double> model;
 
-	model.add_zero_level((mMatr)A0_0, (mMatr)A0_plus);
-	model.add_level((mMatr)A1_minus, (mMatr)A1_0, (mMatr)A1_plus);
-	model.add_level((mMatr)A2_minus, (mMatr)A2_0, (mMatr)A2_plus);
-	model.add_A_minus(An_minus);
+	process.add_zero_level((mMatr)A0_0, (mMatr)A0_plus);
+	process.add_level((mMatr)A1_minus, (mMatr)A1_0, (mMatr)A1_plus);
+	process.add_level((mMatr)A2_minus, (mMatr)A2_0, (mMatr)A2_plus);
+	process.add_A_minus(An_minus);
+	model.bind(process);
 	//model.add_A_0(An_0);
 
 	// R computation test
@@ -137,11 +138,13 @@ BOOST_AUTO_TEST_CASE(M_M_1_model)
 	Matrix<double, 1, 1> lambda{{l}};
 	Matrix<double, 1, 1> mu{{m}};
 
+	QBD<double> process;
 	StationaryDistribution<double> model;
 
-	model.add_zero_level((mMatr)(-lambda), (mMatr)lambda);
-	model.add_level((mMatr)mu,(mMatr)(-lambda - mu),(mMatr)lambda);
-	model.add_level((mMatr)mu,(mMatr)(-lambda - mu),(mMatr)lambda);
+	process.add_zero_level((mMatr)(-lambda), (mMatr)lambda);
+	process.add_level((mMatr)mu,(mMatr)(-lambda - mu),(mMatr)lambda);
+	process.add_level((mMatr)mu,(mMatr)(-lambda - mu),(mMatr)lambda);
+	model.bind(process);
 
 	BOOST_CHECK(abs(model.get_mean_clients() - rho/(1-rho)));
 
