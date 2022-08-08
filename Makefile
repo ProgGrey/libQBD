@@ -7,7 +7,10 @@ tests: test
 	./test
 
 test: tests/tests.cpp inc/libQBD.hpp inc/base.hpp inc/stationary.hpp
-	$(CXX) tests/tests.cpp -lboost_unit_test_framework -std=c++11 -Og -g -march=native -o test
+	$(CXX) tests/tests.cpp -lboost_unit_test_framework -std=c++11 -Og -g -fsanitize=address,undefined -march=native -o test
+
+clean:
+	rm test
 
 # --bug-hunting
 check:
