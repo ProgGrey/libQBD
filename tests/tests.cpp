@@ -123,6 +123,10 @@ BOOST_AUTO_TEST_CASE(cluster_model_2_servers)
 	}
 	
 	BOOST_CHECK(abs(s - 1) < 1e-15);
+
+	// rho test
+	BOOST_CHECK(abs(model.get_rho() - 0.4764904288174868218775) < 1e-15);
+
 }
 
 BOOST_AUTO_TEST_CASE(M_M_1_model)
@@ -151,5 +155,5 @@ BOOST_AUTO_TEST_CASE(M_M_1_model)
 
 	BOOST_CHECK(abs(model.get_R()(0,0) - rho) < 1e-15);
 
-	
+	BOOST_CHECK(abs(model.get_rho() - rho) < 1e-15);
 }

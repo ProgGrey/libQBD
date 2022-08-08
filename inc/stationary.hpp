@@ -10,14 +10,11 @@
 #define __LIB_QBD_STATIONARY_HPP__
 
 #ifndef LIBQBD_MAX_ERROR
+#include <limits>
 #define LIBQBD_MAX_ERROR (std::numeric_limits<matrix_element_type>::min())
 #endif
 
 #include "base.hpp"
-#include <cmath>
-#include <algorithm>
-#include <limits>
-#include <iostream>
 
 namespace libQBD
 {
@@ -25,6 +22,10 @@ namespace libQBD
     class  StationaryDistribution: public QBD<matrix_element_type>
     {
     protected:
+
+        matrix_element_type rho;
+        bool is_rho_computated = false;
+
         // Matrices G R for process
         Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> R;
         Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> G;
@@ -44,6 +45,23 @@ namespace libQBD
         Eigen::Matrix<matrix_element_type, 1, Eigen::Dynamic> sum_from_c_to_inf;
         bool is_sum_from_c_to_inf_computated = false;
 
+        void computate_rho(void)
+        {
+            if(!is_rho_computated){
+                // Neuts criteria
+                Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> A = this->A_minus.back();
+                A += this->A_0.back();
+                A += this->A_plus.back();
+                Eigen::Matrix<matrix_element_type, Eigen::Dynamic, 1> norm_eq = A.Constant(A.rows(), 1, 1.0);
+                A.col(0) = norm_eq;
+                Eigen::Matrix<matrix_element_type, Eigen::Dynamic, 1> r = A.Constant(A.rows(), 1, 0.0);;
+                r(0,0) = 1.0;
+                Eigen::Matrix<matrix_element_type, 1, Eigen::Dynamic> alpha = A.transpose().colPivHouseholderQr().solve(r).transpose();
+                this->rho = (alpha * this->A_plus.back()).sum() / (alpha * this->A_minus.back()).sum();
+                is_rho_computated = true;
+            }
+        }
+
         void computate_R(void)
         {
             if (!is_R_computated) {
@@ -61,6 +79,10 @@ namespace libQBD
         void computate_G(void)
         {
             if (!is_G_computated) {
+                computate_rho();
+                if(rho >= 1){
+                    throw "rho is equal or greater than 1.";
+                }
                 // Logarithmic reduction algorithm. 
                 // See Bini D., Latouche G., Meini B. Numerical methods for structured Markov chains pp. 188-189.
                 Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* A_m = &(this->A_minus.back());
@@ -92,6 +114,10 @@ namespace libQBD
         {
             if(is_pi_0_c_computated){
                 return;
+            }
+            computate_rho();
+            if(rho >= 1){
+                throw "rho is equal or greater than 1.";
             }
             // Determine number of equations:
             unsigned int matrix_len = 0;
@@ -180,6 +206,12 @@ namespace libQBD
         }
 
     public:
+
+        matrix_element_type get_rho(void)
+        {
+            computate_rho();
+            return rho;
+        }
 
         // Compute matrix R, i.e. minimal non-negative singular solution of equation R^2 A(-) + R A(0) + A(+) = 0
         Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> get_R(void)
