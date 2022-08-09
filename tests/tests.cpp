@@ -158,7 +158,8 @@ BOOST_AUTO_TEST_CASE(M_M_1_model)
 	process.auto_A_0();
 	model.bind(process);
 
-	BOOST_CHECK(abs(model.get_mean_clients() - rho/(1-rho)));
+	//cout << abs(model.get_mean_clients() - rho/(1-rho))  << endl;
+	BOOST_CHECK(abs(model.get_mean_clients() - rho/(1-rho)) < 2e-15);
 
 	vector<Matrix<double, Dynamic, 1>> queue;
 	Matrix<double, Dynamic, 1> q0{{0}};
@@ -166,7 +167,8 @@ BOOST_AUTO_TEST_CASE(M_M_1_model)
 	queue.push_back(q0);
 	queue.push_back(q1);
 
-	BOOST_CHECK(abs(model.get_mean_queue(queue) - rho*rho/(1 - rho)) <= 2e-15);
+	//cout << abs(model.get_mean_queue(queue) - rho*rho/(1 - rho)) << endl;
+	BOOST_CHECK(abs(model.get_mean_queue(queue) - rho*rho/(1 - rho)) < 2e-15);
 
 	BOOST_CHECK(abs(model.get_R()(0,0) - rho) < 1e-15);
 
