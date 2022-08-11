@@ -162,13 +162,13 @@ BOOST_AUTO_TEST_CASE(M_M_1_model)
 	BOOST_CHECK(abs(model.get_mean_clients() - rho/(1-rho)) < 2e-15);
 
 	vector<VectorX<double>> queue;
-	VectorX<double> q0{0};
-	VectorX<double> q1{0};
+	VectorX<double> q0{{0}};
+	VectorX<double> q1{{0}};
 	queue.push_back(q0);
 	queue.push_back(q1);
 
 	//cout << abs(model.get_mean_queue(queue) - rho*rho/(1 - rho)) << endl;
-	//BOOST_CHECK(abs(model.get_mean_queue(queue) - rho*rho/(1 - rho)) < 2e-15);
+	BOOST_CHECK(abs(model.get_mean_queue(queue) - rho*rho/(1 - rho)) < 2e-15);
 
 	BOOST_CHECK(abs(model.get_R()(0,0) - rho) < 1e-15);
 

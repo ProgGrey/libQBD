@@ -294,12 +294,12 @@ namespace libQBD
             matrix_element_type res = 0;
             computate_pi_0_c();
             for(unsigned int k = 0; k < (pi_0_c.size() - 1); k++){
-                res += (pi_0_c[k] * queue_size_vector[k])(0,0);
+                res += (pi_0_c[k] * queue_size_vector[k]).sum();
             }
             Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> I = R.Identity(R.rows(), R.cols());
             auto tmp = (I - R).transpose().colPivHouseholderQr();
             Eigen::Matrix<matrix_element_type, Eigen::Dynamic, 1> pi = pi_0_c.back();
-            res += (tmp.solve(pi)*queue_size_vector.back())(0,0);
+            res += (tmp.solve(pi)*queue_size_vector.back()).sum();
             res += tmp.solve(tmp.solve((pi.transpose() * R).transpose())).sum();
             return res;
         }
