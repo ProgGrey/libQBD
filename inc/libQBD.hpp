@@ -10,8 +10,8 @@
 #ifndef __LIB_QBD_LIBQBD_HPP__
 #define __LIB_QBD_LIBQBD_HPP__
 
-#define __LIB_QBD_VERSION_DATE__ 20220809
-#define __LIB_QBD_VERSION_MINOR__ 5
+#define __LIB_QBD_VERSION_DATE__ 20220811
+#define __LIB_QBD_VERSION_MINOR__ 6
 #define __LIB_QBD_VERSION_MAJOR__ 0
 
 #include "base.hpp"

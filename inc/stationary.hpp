@@ -35,7 +35,7 @@ namespace libQBD
         bool is_G_computated = false;
 
         // Distribution for levels 0-c
-        std::vector<Eigen::Matrix<matrix_element_type, 1, Eigen::Dynamic>> pi_0_c;
+        std::vector<Eigen::VectorX<matrix_element_type>> pi_0_c;
         bool is_pi_0_c_computated = false;
 
         // mean clients
@@ -189,8 +189,8 @@ namespace libQBD
             Eigen::Matrix<matrix_element_type, Eigen::Dynamic, 1> right = B.Zero(B.rows(), 1);
             right(0,0) = 1.0;
             Eigen::Matrix<matrix_element_type, 1, Eigen::Dynamic> dist = B.transpose().colPivHouseholderQr().solve(right).transpose();
+            dist = (dist.array() < 0).select(0, dist);
             // Slice vector into levels:
-            Eigen::Matrix<matrix_element_type, 1, Eigen::Dynamic> tmp;
             unsigned int r = 0;
             unsigned int k = 0;
             do{
@@ -238,10 +238,10 @@ namespace libQBD
             return G;
         }
 
-        std::vector<Eigen::Matrix<matrix_element_type, 1, Eigen::Dynamic>> get_dist(unsigned int max_level)
+        std::vector<Eigen::VectorX<matrix_element_type>> get_dist(unsigned int max_level)
         {
             computate_pi_0_c();
-            std::vector<Eigen::Matrix<matrix_element_type, 1, Eigen::Dynamic>> ret;
+            std::vector<Eigen::VectorX<matrix_element_type>> ret;
             unsigned int k = 0;
             for(; k < std::min(max_level + 1, (unsigned int)pi_0_c.size()); k++){
                 ret.push_back(pi_0_c[k]);
@@ -254,7 +254,7 @@ namespace libQBD
             return ret;
         }
 
-        std::vector<Eigen::Matrix<matrix_element_type, 1, Eigen::Dynamic>> get_pi_0_c(void)
+        std::vector<Eigen::VectorX<matrix_element_type>> get_pi_0_c(void)
         {
             computate_pi_0_c();
             return pi_0_c;
@@ -272,23 +272,24 @@ namespace libQBD
             }
             Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> I = R.Identity(R.rows(), R.cols());
             auto tmp = (I - R).colPivHouseholderQr().inverse();
-            mean_cl += (pi_0_c.back() * (R * tmp + (pi_0_c.size() - 1) * I) * tmp).sum();
+            Eigen::Matrix<matrix_element_type, 1, Eigen::Dynamic> pi = pi_0_c.back();
+            mean_cl += (pi * (R * tmp + (pi_0_c.size() - 1) * I) * tmp).sum();
             is_mean_clients_computated = true;
             return mean_cl;
         }
 
-        Eigen::Matrix<matrix_element_type, 1, Eigen::Dynamic> get_sum_from_c_to_inf(void){
+        Eigen::VectorX<matrix_element_type> get_sum_from_c_to_inf(void){
             if(!is_sum_from_c_to_inf_computated){
                 computate_pi_0_c();
                 Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> I = R.Identity(R.rows(), R.cols());
-                sum_from_c_to_inf = (I - R).transpose().colPivHouseholderQr().solve(pi_0_c.back().transpose());
+                sum_from_c_to_inf = (I - R).transpose().colPivHouseholderQr().solve(pi_0_c.back());
                 is_sum_from_c_to_inf_computated = true;
             }
             return sum_from_c_to_inf;
         }
 
 
-        matrix_element_type get_mean_queue(std::vector<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, 1>> queue_size_vector)
+        matrix_element_type get_mean_queue(std::vector<Eigen::VectorX<matrix_element_type>> queue_size_vector)
         {
             matrix_element_type res = 0;
             computate_pi_0_c();
@@ -297,8 +298,9 @@ namespace libQBD
             }
             Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> I = R.Identity(R.rows(), R.cols());
             auto tmp = (I - R).transpose().colPivHouseholderQr();
-            res += (tmp.solve(pi_0_c.back().transpose())*queue_size_vector.back())(0,0);
-            res += tmp.solve(tmp.solve((pi_0_c.back() * R).transpose())).sum();
+            Eigen::Matrix<matrix_element_type, Eigen::Dynamic, 1> pi = pi_0_c.back();
+            res += (tmp.solve(pi)*queue_size_vector.back())(0,0);
+            res += tmp.solve(tmp.solve((pi.transpose() * R).transpose())).sum();
             return res;
         }
     };
