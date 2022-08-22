@@ -94,20 +94,16 @@ namespace libQBD
                 Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> V_p = T * (*A_p);
                 Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> I = T.Identity(T.rows(), T.cols());
                 Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> W = (I - V_m * V_p - V_p * V_m).colPivHouseholderQr().inverse();
-                //Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> G = V_m;
                 Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> U = I;
-                Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> G0;
                 G = V_m;
                 do {
-                    G0 = G;
                     U = U * V_p;
                     V_m = W * V_m * V_m;
                     V_p = W * V_p * V_p;
                     W = (I - V_m * V_p - V_p * V_m).colPivHouseholderQr().inverse();
-                    G = G0 + U * V_m;
-                    T = G - G0;
-                } while (std::max(std::abs(T.maxCoeff()), std::abs(T.minCoeff())) >= LIBQBD_MAX_ERROR);
-                //this->G = G;
+                    T = U * V_m;
+                    G = G + T;
+                } while ((T. template lpNorm<Eigen::Infinity>()) > LIBQBD_MAX_ERROR);
                 is_G_computated = true;
             }
         }

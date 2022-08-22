@@ -1,4 +1,4 @@
-CXX = $(shell if [[ `command -v g++` == "" ]]; then echo clang++; else echo g++; fi)
+CXX = $(shell if [ -z "`which g++`" ] ; then echo clang++; else echo g++; fi)
 #CXX:=clang++
 main:
 	#Run 'make tests' for testing.
