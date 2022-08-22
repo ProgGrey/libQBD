@@ -22,7 +22,7 @@ namespace libQBD
     class  StationaryDistribution
     {
     protected:
-        QBD<matrix_element_type> *process = NULL;
+        QBD<matrix_element_type> *process = nullptr;
         
         matrix_element_type rho;
         bool is_rho_computated = false;
@@ -118,11 +118,11 @@ namespace libQBD
                 throw "rho is equal or greater than 1.";
             }
             // Determine number of equations:
-            unsigned int matrix_len = 0;
+            Eigen::Index matrix_len = 0;
             for(auto it = process->A_0.begin(); it != (process->A_0.end()-1); it++){
                 matrix_len += it->rows();
             }
-            unsigned int pos = process->A_0.size() - 1;
+            std::size_t pos = process->A_0.size() - 1;
             for(;pos < process->A_plus.size() - 1; pos++){
                 matrix_len += process->A_plus[pos].rows();
             }
@@ -131,7 +131,7 @@ namespace libQBD
             }
             Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> B = R.Zero(matrix_len, matrix_len);
             // Number of unique levels:
-            unsigned int c = std::max(std::max(process->A_minus.size() + 1, process->A_0.size()), process->A_plus.size()) - 2;
+            std::size_t c = std::max(std::max(process->A_minus.size() + 1, process->A_0.size()), process->A_plus.size()) - 2;
             // First block row:
             B.block(0,0,process->A_0[0].rows(), process->A_0[0].cols()) = process->A_0[0];
             B.block(0, process->A_0[0].cols(),process->A_plus[0].rows(), process->A_plus[0].cols()) = process->A_plus[0];
@@ -139,8 +139,8 @@ namespace libQBD
             unsigned int A_0_pos = (1 < process->A_0.size() ? 1 : 0);
             unsigned int A_p_pos = (1 < process->A_plus.size() ? 1 : 0);
             unsigned int A_m_pos = 0;
-            unsigned int x = 0;
-            unsigned int y = process->A_0[0].rows();
+            Eigen::Index x = 0;
+            Eigen::Index y = process->A_0[0].rows();
             for(unsigned int k = 1; k < c; k++){
                 B.block(y, x, process->A_minus[A_m_pos].rows(),
                               process->A_minus[A_m_pos].cols()) = process->A_minus[A_m_pos];
@@ -187,10 +187,10 @@ namespace libQBD
             Eigen::Matrix<matrix_element_type, 1, Eigen::Dynamic> dist = B.transpose().colPivHouseholderQr().solve(right).transpose();
             dist = (dist.array() < 0).select(0, dist);
             // Slice vector into levels:
-            unsigned int r = 0;
-            unsigned int k = 0;
+            Eigen::Index r = 0;
+            std::size_t k = 0;
             do{
-                unsigned int l = r;
+                Eigen::Index l = r;
                 if(k < process->A_0.size()){
                     r += process->A_0[k].rows();
                 }else{
@@ -238,8 +238,8 @@ namespace libQBD
         {
             computate_pi_0_c();
             std::vector<Eigen::VectorX<matrix_element_type>> ret;
-            unsigned int k = 0;
-            for(; k < std::min(max_level + 1, (unsigned int)pi_0_c.size()); k++){
+            std::size_t k = 0;
+            for(; k < std::min(std::size_t(max_level + 1), pi_0_c.size()); k++){
                 ret.push_back(pi_0_c[k]);
             }
             Eigen::Matrix<matrix_element_type, 1, Eigen::Dynamic> pi = pi_0_c.back();

@@ -63,7 +63,7 @@ namespace libQBD
 
         void auto_A_0(void)
         {
-            unsigned int k = A_0.size();
+            std::size_t k = A_0.size();
             if((A_0.size() == 0) && (A_plus.size() > 0)){
                 A_0.push_back((-(A_plus[k].rowwise().sum())).asDiagonal());
             }

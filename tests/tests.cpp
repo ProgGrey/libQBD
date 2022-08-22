@@ -74,9 +74,10 @@ BOOST_AUTO_TEST_CASE(cluster_model_2_servers)
 		{0	  , 0	 , 0    , 0  , 0  , 1}};
 	A2_plus *= lambda;
 
+	/*
 	Matrix<double, 6, 6> A2_0 = (-(A2_minus.rowwise().sum() +
-		A2_plus.rowwise().sum())).asDiagonal();
-	
+		A2_plus.rowwise().sum())).asDiagonal();//*/
+
 	//Repeated level of model 
 	Matrix<double, 6, 6>  An_minus{
 		{2*f_l*p1*mu1	  , 2*f_l*(1-p1)*mu1     , 0			     , 0					, 0						   , 0},
@@ -92,11 +93,11 @@ BOOST_AUTO_TEST_CASE(cluster_model_2_servers)
 	QBD<double> process;
 	StationaryDistribution<double> model;
 
-	process.add_zero_level((mMatr)A0_0, (mMatr)A0_plus);
-	process.add_level((mMatr)A1_minus, (mMatr)A1_0, (mMatr)A1_plus);
+	process.add_zero_level(mMatr(A0_0), mMatr(A0_plus));
+	process.add_level(mMatr(A1_minus), mMatr(A1_0), mMatr(A1_plus));
 	//process.add_level((mMatr)A2_minus, (mMatr)A2_0, (mMatr)A2_plus);
-	process.add_A_minus((mMatr)A2_minus);
-	process.add_A_plus((mMatr)A2_plus);
+	process.add_A_minus(mMatr(A2_minus));
+	process.add_A_plus(mMatr(A2_plus));
 	process.add_A_minus(An_minus);
 	process.auto_A_0();
 
@@ -148,13 +149,13 @@ BOOST_AUTO_TEST_CASE(M_M_1_model)
 	//process.add_level((mMatr)mu,(mMatr)(-lambda - mu),(mMatr)lambda);
 	//process.add_level((mMatr)mu,(mMatr)(-lambda - mu),(mMatr)lambda);
 	// Zero level:
-	process.add_A_plus((mMatr)lambda);
+	process.add_A_plus(mMatr(lambda));
 	// c level:
-	process.add_A_plus((mMatr)lambda);
-	process.add_A_minus((mMatr)mu);
+	process.add_A_plus(mMatr(lambda));
+	process.add_A_minus(mMatr(mu));
 	// c+1 level:
-	process.add_A_minus((mMatr)mu);
-	process.add_A_plus((mMatr)lambda);
+	process.add_A_minus(mMatr(mu));
+	process.add_A_plus(mMatr(lambda));
 	process.auto_A_0();
 	model.bind(process);
 
