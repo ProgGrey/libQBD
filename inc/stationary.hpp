@@ -101,9 +101,10 @@ namespace libQBD
                     V_m = W * V_m * V_m;
                     V_p = W * V_p * V_p;
                     W = (I - V_m * V_p - V_p * V_m).colPivHouseholderQr().inverse();
-                    T = U * V_m;
-                    G = G + T;
-                } while ((T. template lpNorm<Eigen::Infinity>()) > LIBQBD_MAX_ERROR);
+                    T = G;
+                    G = G + U * V_m;
+                    T -= G;
+                } while (std::max(-(T.minCoeff()),T.maxCoeff()) > LIBQBD_MAX_ERROR);
                 is_G_computated = true;
             }
         }
