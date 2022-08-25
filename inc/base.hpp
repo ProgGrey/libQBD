@@ -12,11 +12,25 @@
 
 #include <eigen3/Eigen/Dense>
 #include <vector>
-
-#include <iostream>
+#include <exception>
 
 namespace libQBD
 {
+    class libQBD_exception : public std::exception{
+        private:
+        const char * message;
+
+        public:
+        explicit libQBD_exception(const char * msg){
+            message = msg;
+        }
+        
+        virtual const char* what () const noexcept override
+        {
+            return message;
+        }
+    };
+
     template<typename matrix_element_type>
     class  QBD
     {

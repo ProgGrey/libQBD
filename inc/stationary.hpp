@@ -82,7 +82,7 @@ namespace libQBD
             if (!is_G_computated) {
                 computate_rho();
                 if(rho >= 1){
-                    throw "rho is equal or greater than 1.";
+                    throw libQBD_exception("rho is equal or greater than 1.");
                 }
                 // Logarithmic reduction algorithm. 
                 // See Bini D., Latouche G., Meini B. Numerical methods for structured Markov chains pp. 188-189.
@@ -116,7 +116,7 @@ namespace libQBD
             }
             computate_rho();
             if(rho >= 1){
-                throw "rho is equal or greater than 1.";
+                throw libQBD_exception("rho is equal or greater than 1.");
             }
             // Determine number of equations:
             Eigen::Index matrix_len = 0;
@@ -261,6 +261,10 @@ namespace libQBD
         {
             if(is_mean_clients_computated){
                 return mean_cl;
+            }
+            computate_rho();
+            if(this->rho >= 1){
+                return INFINITY;
             }
             mean_cl = 0;
             computate_pi_0_c();
