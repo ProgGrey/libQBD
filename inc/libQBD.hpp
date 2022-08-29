@@ -16,5 +16,6 @@
 
 #include "base.hpp"
 #include "stationary.hpp"
+#include "transient.hpp"
 
 #endif

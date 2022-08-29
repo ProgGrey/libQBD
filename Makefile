@@ -15,8 +15,8 @@ tests: test
 	./test
 
 # -fsanitize=address,undefined 
-test: tests/tests.cpp inc/libQBD.hpp inc/base.hpp inc/stationary.hpp
-	$(CXX) $(CXX_FLAGS) tests/tests.cpp -lboost_unit_test_framework -std=c++11 -O3 -ffp-contract=fast -march=native -o test
+test: tests/tests.cpp inc/libQBD.hpp inc/base.hpp inc/stationary.hpp inc/transient.hpp
+	$(CXX) $(CXX_FLAGS) tests/tests.cpp -lboost_unit_test_framework -std=c++11 -Og -fsanitize=address,undefined -ffp-contract=fast -march=native -o test
 
 clean:
 	rm test

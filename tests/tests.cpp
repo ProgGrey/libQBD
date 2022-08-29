@@ -158,9 +158,13 @@ BOOST_AUTO_TEST_CASE(M_M_1_model)
 	process.add_A_plus(mMatr(lambda));
 	process.auto_A_0();
 	model.bind(process);
+	// Test for memory operations. Add -fsanitize=address
+	Q_in_pow<double> test(process);
+	//test.print();
+	Q_in_pow<double> t2 = test.inc_power(process, 1);
+	t2.print();
 
-	//cout << abs(model.get_mean_clients() - rho/(1-rho))  << endl;
-	BOOST_CHECK(abs(model.get_mean_clients() - rho/(1-rho)) < 2e-15);
+	BOOST_CHECK(abs(model.get_mean_clients() - rho/(1-rho)) <= 3e-15);
 	//cout << abs(model.get_mean_clients() - rho/(1-rho)) << endl;
 
 	vector<VectorX<double>> queue;

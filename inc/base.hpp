@@ -40,7 +40,34 @@ namespace libQBD
         std::vector<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>> A_0;
         std::vector<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>> A_minus;
 
-    
+
+        const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* get_A_minus(std::size_t level) const{
+            if(level == 0){
+                throw libQBD_exception("Matrix A_minus for zero level is undefined.");
+            }
+            level--;
+            if(level >= A_minus.size()){
+                return &(A_minus.back());
+            } else{
+                return &(A_minus[level]);
+            }
+        }
+
+        const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* get_A_0(std::size_t level) const{
+            if(level >= A_0.size()){
+                return &(A_0.back());
+            } else{
+                return &(A_0[level]);
+            }
+        }
+        
+        const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* get_A_plus(std::size_t level) const{
+            if(level >= A_plus.size()){
+                return &(A_plus.back());
+            } else{
+                return &(A_plus[level]);
+            }
+        }
 
         void add_zero_level(
             Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> A_0,

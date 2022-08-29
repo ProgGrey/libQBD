@@ -292,6 +292,10 @@ namespace libQBD
 
         matrix_element_type get_mean_queue(std::vector<Eigen::VectorX<matrix_element_type>> queue_size_vector)
         {
+            computate_rho();
+            if(this->rho >= 1){
+                return INFINITY;
+            }
             matrix_element_type res = 0;
             computate_pi_0_c();
             for(unsigned int k = 0; k < (pi_0_c.size() - 1); k++){
