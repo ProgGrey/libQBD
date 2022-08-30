@@ -91,7 +91,6 @@ BOOST_AUTO_TEST_CASE(cluster_model_2_servers)
 		A2_plus.rowwise().sum())).asDiagonal();
 
 	QBD<double> process;
-	StationaryDistribution<double> model;
 
 	process.add_zero_level(mMatr(A0_0), mMatr(A0_plus));
 	process.add_level(mMatr(A1_minus), mMatr(A1_0), mMatr(A1_plus));
@@ -101,6 +100,7 @@ BOOST_AUTO_TEST_CASE(cluster_model_2_servers)
 	process.add_A_minus(An_minus);
 	process.auto_A_0();
 
+	StationaryDistribution<double> model;
 	model.bind(process);
 
 	// R computation test
@@ -162,7 +162,7 @@ BOOST_AUTO_TEST_CASE(M_M_1_model)
 	Q_in_pow<double> test(process);
 	//test.print();
 	Q_in_pow<double> t2 = test.inc_power(process, 1);
-	t2.print();
+	//t2.print();
 
 	BOOST_CHECK(abs(model.get_mean_clients() - rho/(1-rho)) <= 3e-15);
 	//cout << abs(model.get_mean_clients() - rho/(1-rho)) << endl;
