@@ -89,32 +89,89 @@ namespace libQBD
                 std::vector<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>*> tmp;
                 ret.matrices.push_back(tmp);
             }
-            //central diagonals:
             Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* m;
-            for(std::size_t k = 0; k < this->matrices.size(); k++){// row of left matrix
-                for(std::size_t j = 0; j < matrices[k].size(); j++){// Column of right matrix
-                    m = new Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>(matrices[k][j]->rows(), matrices[k][j]->cols());
+            // lower diagonal:
+            for(std::size_t k = power + 1; k < ret.matrices.size(); k++){
+                std::size_t true_k = k;
+                if(true_k >= this->matrices.size()){
+                    true_k = this->matrices.size() - 1;
+                }
+                m = new Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>();
+                *m = (*matrices[true_k][0]) * (*proc.get_A_minus(k - 1)) * weight;
+                ret.matrices[k].push_back(m);
+            }
+            //central diagonals:
+            for(std::size_t k = 0; k <  ret.matrices.size(); k++){// row of left matrix
+                std::size_t true_k = k;
+                if(true_k >= this->matrices.size()){
+                    true_k = this->matrices.size() - 1;
+                }
+                for(std::size_t j = 0; j < matrices[true_k].size(); j++){// Column of right matrix
+                    m = new Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>(matrices[true_k][j]->rows(), matrices[true_k][j]->cols());
                     m->setZero();
-                    std::size_t left, right;
                     const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* A[3] = {nullptr, nullptr, nullptr};
-                    if(j == 0){
+                    std::size_t col = k + j;
+                    //std::cout << (int)power << std::endl;
+                    if(k >= power){
+                        col -= power;
+                    } else if(k < power){
+                        col = j;
+                    }
+                    /*
+                    if(k > 0){
+                        col--;
+                    }//*/
+                    std::size_t left, right;
+                    if(j > 0){
+                        left = j - 1;
+                    } else{
+                        left = 0;
+                    }
+                    right = std::min(j+1, matrices[true_k].size() - 1);
+                    std::cout << "row = " << k << ", col = " << col << ", left = " << left << ", right = " << right;
+                    if(col == 0){
                         A[0] = proc.get_A_0(0);
                         A[1] = proc.get_A_minus(1);
-                        left = 0;
-                        right = 1;
-                        //*m = (*matrices[k][left]) * (*A0) + (*matrices[k][left + 1]) * (*Am);
+                    }else{
+                        A[0] = proc.get_A_plus(col-1);
+                        A[1] = proc.get_A_0(col);
+                        A[2] = proc.get_A_minus(col+1);
+                    }
+                    std::size_t zUp, zLeft;
+                    if(col > 1){
+                        zUp = col - 1;
                     } else{
-                        A[0] = proc.get_A_plus(j-1);
-                        A[1] = proc.get_A_0(j);
-                        A[2] = proc.get_A_minus(j+1);
-                        left = this->matrices[k].size() - (j-1);
-                        right = std::min(this->matrices[k].size()-1, this->matrices[k].size() + 3 - j);
+                        zUp = 0;
+                    }
+                    if(k > power){
+                        zLeft = k - power;
+                    } else{
+                        zLeft = 0;
+                    }
+                    std::cout << ", zLeft = " << zLeft << ", zUp = " << zUp;
+                    uint_fast8_t pos = 0;
+                    if(zUp < zLeft && col != 0){
+                        pos++;
                     }
                     for(std::size_t i = left; i <= right; i++){
-                        *m += *(this->matrices[k][i]) * (*A[i-left]) * weight;
+                        *m += *(this->matrices[true_k][i]) * (*A[pos]) * weight;
+                        std::cout << ", " << *(this->matrices[true_k][i]);
+                        pos++;
                     }
+                    std::cout << ", m = " << *m ;
+                    std::cout << ", A0 = " << *A[0] << ", A1 = " << *A[1] << std::endl;
                     ret.matrices[k].push_back(m);
                 }
+            }
+            // Upper diagonal:
+            for(std::size_t k = 0; k < ret.matrices.size(); k++){
+                std::size_t true_k = k;
+                if(true_k >= this->matrices.size()){
+                    true_k = this->matrices.size() - 1;
+                }
+                m = new Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>();
+                *m = (*matrices[true_k].back()) * (*proc.get_A_plus(k + 2)) * weight;
+                ret.matrices[k].push_back(m);
             }
             return ret;
         }
