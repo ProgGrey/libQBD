@@ -230,6 +230,28 @@ namespace libQBD
             }
         }
 
+        void add_identity_matrix(void)
+        {
+            std::size_t pos = 0;
+            for(std::size_t k = 0; k < matrices.size(); k++){
+                Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* m = matrices[k][pos];
+                *m += m->Identity(m->rows(), m->cols());
+                if(k < power){
+                    pos++;
+                }
+            }
+            /*
+            for(auto it = matrices.begin(); it != matrices.end(); it++){
+                std::size_t center = (it->size() >> 1) + 1;
+                if(it - matrices.begin() < power + 1){
+                    center -= power - 1;
+                }
+                Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* m = it->at(center);
+                
+            }
+            //*/
+        }
+
         Q_in_pow<matrix_element_type>&  operator+=(const Q_in_pow<matrix_element_type> &right)
         {
             if (this == &right){
@@ -272,18 +294,58 @@ namespace libQBD
     class TaylorSeriesTransient
     {
         private:
+        matrix_element_type h;
+        Q_in_pow<matrix_element_type> B;
 
-        //static const matrix_element_type weights[];
+        matrix_element_type get_min_element(const QBD<matrix_element_type> &proc)
+        {
+            matrix_element_type ret = 0;
+            for(auto it = proc.A_0.begin(); it != proc.A_0.end(); it++){
+                std::min(it->minCoeff(), ret);
+            }
+            return ret;
+        }
 
-        /*
-        if(typeid(matrix_element_type) == typeid(float)){
-            static const float weights[38] ={1.00000000e+00, 5.00000000e-01, 1.66666667e-01, 4.16666667e-02, 8.33333333e-03, 1.38888889e-03, 1.98412698e-04, 
-                2.48015873e-05, 2.75573192e-06, 2.75573192e-07, 2.50521084e-08, 2.08767570e-09, 1.60590438e-10, 1.14707456e-11, 7.64716373e-13, 4.77947733e-14,
-                2.81145725e-15, 1.56192070e-16, 8.22063525e-18, 4.11031762e-19, 1.95729411e-20, 8.89679139e-22, 3.86817017e-23, 1.61173757e-24, 6.44695028e-26, 
-                2.47959626e-27, 9.18368986e-29, 3.27988924e-30, 1.13099629e-31, 3.76998763e-33, 1.21612504e-34, 3.80039075e-36, 1.15163356e-37, 3.38715754e-39, 
-                9.67759296e-41, 2.68822027e-42, 7.26546018e-44, 1.91196321e-45};
-        }else if (typeid(matrix_element_type) == typeid(double)){
-            static const double weights[177] = { 1.00000000000000000e+00, 5.00000000000000000e-01, 1.66666666666666667e-01, 4.16666666666666667e-02, 8.33333333333333333e-03, 
+        void computate_right_matrix(unsigned int order);
+
+        public:
+        void bind(const QBD<matrix_element_type> &proc, unsigned int order, matrix_element_type step)
+        {
+            if(step < 0){
+                h = -1/get_min_element(proc);
+            } else{
+                h = step;
+            }
+            B = Q_in_pow<matrix_element_type>(proc);
+            B.mull_by_const(h);
+            computate_right_matrix(order);
+        }
+
+        matrix_element_type get_step(void)
+        {
+            return h;
+        }
+
+        std::vector<std::vector<Eigen::VectorX<matrix_element_type>>> get_dist(matrix_element_type max_time, std::vector<Eigen::VectorX<matrix_element_type>> pi_0) 
+        {
+
+        }
+
+        std::vector<matrix_element_type> get_mean_clients(matrix_element_type max_time, std::vector<Eigen::VectorX<matrix_element_type>> pi_0)
+        {
+
+        }
+
+        std::vector<matrix_element_type> get_mean_queue(std::vector<Eigen::VectorX<matrix_element_type>> queue_size_vector, matrix_element_type max_time, std::vector<Eigen::VectorX<matrix_element_type>> pi_0)
+        {
+
+        }
+    };
+
+    template<>
+    void TaylorSeriesTransient<double>::computate_right_matrix(unsigned int order)
+    {
+        static const double weight[177] = {1.00000000000000000e+00, 5.00000000000000000e-01, 1.66666666666666667e-01, 4.16666666666666667e-02, 8.33333333333333333e-03, 
                 1.38888888888888889e-03, 1.98412698412698413e-04, 2.48015873015873016e-05, 2.75573192239858907e-06, 2.75573192239858907e-07, 2.50521083854417188e-08, 
                 2.08767569878680990e-09, 1.60590438368216146e-10, 1.14707455977297247e-11, 7.64716373181981648e-13, 4.77947733238738530e-14, 2.81145725434552076e-15, 
                 1.56192069685862265e-16, 8.22063524662432972e-18, 4.11031762331216486e-19, 1.95729410633912612e-20, 8.89679139245057329e-22, 3.86817017063068404e-23, 
@@ -313,31 +375,39 @@ namespace libQBD
                 8.13210296316667000e-290, 4.98902022280163804e-292, 3.04208550170831588e-294, 1.84368818285352477e-296, 1.11065553183947275e-298, 6.65063192718247158e-301, 
                 3.95870948046575690e-303, 2.34243164524601000e-305, 1.37790096779177059e-307, 8.05790039644310285e-310, 4.68482581188552491e-312, 2.70799179877776006e-314, 
                 1.55631712573434486e-316, 8.89324071848197065e-319, 5.05297768095566514e-321, 2.85478965025743793e-323};
+        if(order > 177){
+            order = 177;
         }
-        //*/
-        public:
-        void bind(QBD<matrix_element_type> &proc, unsigned int order)
-        {
-
+        Q_in_pow<double> P = B;
+        for(unsigned int k = 1; k < order; k++){
+            P = P.inc_power();
+            Q_in_pow<double> tmp = P;
+            tmp.mull_by_const(weight[k]);
+            B += tmp;
         }
+        B.add_identity_matrix();
+    }
 
-        std::vector<std::vector<Eigen::VectorX<matrix_element_type>>> get_dist(matrix_element_type max_time, std::vector<Eigen::VectorX<matrix_element_type>> pi_0) 
-        {
-
+    template<>
+    void TaylorSeriesTransient<float>::computate_right_matrix(unsigned int order)
+    {
+        static const float weight[38] ={1.00000000e+00, 5.00000000e-01, 1.66666667e-01, 4.16666667e-02, 8.33333333e-03, 1.38888889e-03, 1.98412698e-04, 
+                2.48015873e-05, 2.75573192e-06, 2.75573192e-07, 2.50521084e-08, 2.08767570e-09, 1.60590438e-10, 1.14707456e-11, 7.64716373e-13, 4.77947733e-14,
+                2.81145725e-15, 1.56192070e-16, 8.22063525e-18, 4.11031762e-19, 1.95729411e-20, 8.89679139e-22, 3.86817017e-23, 1.61173757e-24, 6.44695028e-26, 
+                2.47959626e-27, 9.18368986e-29, 3.27988924e-30, 1.13099629e-31, 3.76998763e-33, 1.21612504e-34, 3.80039075e-36, 1.15163356e-37, 3.38715754e-39, 
+                9.67759296e-41, 2.68822027e-42, 7.26546018e-44, 1.91196321e-45};   
+        if(order > 38){
+            order = 38;
         }
-
-        std::vector<matrix_element_type> get_mean_clients(matrix_element_type max_time, std::vector<Eigen::VectorX<matrix_element_type>> pi_0)
-        {
-
+        Q_in_pow<float> P = B;
+        for(unsigned int k = 1; k < order; k++){
+            P = P.inc_power();
+            Q_in_pow<float> tmp = P;
+            tmp.mull_by_const(weight[k]);
+            B += tmp;
         }
-
-        std::vector<matrix_element_type> get_mean_queue(std::vector<Eigen::VectorX<matrix_element_type>> queue_size_vector, matrix_element_type max_time, std::vector<Eigen::VectorX<matrix_element_type>> pi_0)
-        {
-
-        }
-
-
-    };
+        B.add_identity_matrix();
+    }
 }
 
 #endif

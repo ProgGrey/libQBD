@@ -54,6 +54,7 @@ void mm1(void)
 	test += t3;	
 	test += t4;
 	test += t5;
+	test.add_identity_matrix();
 	test.print();
 }
 
