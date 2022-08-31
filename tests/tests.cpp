@@ -161,7 +161,7 @@ BOOST_AUTO_TEST_CASE(M_M_1_model)
 	// Test for memory operations. Add -fsanitize=address
 	Q_in_pow<double> test(process);
 	//test.print();
-	Q_in_pow<double> t2 = test.inc_power(process, 1);
+	Q_in_pow<double> t2 = test.inc_power();
 	//t2.print();
 
 	BOOST_CHECK(abs(model.get_mean_clients() - rho/(1-rho)) <= 3e-15);

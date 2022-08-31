@@ -41,12 +41,20 @@ void mm1(void)
 	// Test for memory operations. Add -fsanitize=address
 	Q_in_pow<double> test(process);
 	//test.print();
-	Q_in_pow<double> t2 = test.inc_power(process, 1);
+	Q_in_pow<double> t2 = test.inc_power();
 	t2.print();
-    Q_in_pow<double> t3 = t2.inc_power(process, 1);
+    Q_in_pow<double> t3 = t2.inc_power();
     t3.print();
-    Q_in_pow<double> t4 = t3.inc_power(process, 1);
+    Q_in_pow<double> t4 = t3.inc_power();
     t4.print();
+	Q_in_pow<double> tt = test;
+	tt = t4;
+	Q_in_pow<double> t5 = tt.inc_power();
+	test += t2;
+	test += t3;	
+	test += t4;
+	test += t5;
+	test.print();
 }
 
 void mjmrss(void)
@@ -132,11 +140,18 @@ void mjmrss(void)
 
     Q_in_pow<double> test(process);
     //test.print();
-    Q_in_pow<double> t2 = test.inc_power(process, 1);
+    Q_in_pow<double> t2 = test.inc_power();
 	//t2.print();
-    Q_in_pow<double> t3 = t2.inc_power(process, 1);
+    Q_in_pow<double> t3 = t2.inc_power();
     //t3.print();
-    Q_in_pow<double> t4 = t3.inc_power(process, 1);
+    Q_in_pow<double> t4 = t3.inc_power();
+	Q_in_pow<double> tt = test;
+	tt = t4;
+	Q_in_pow<double> t5 = tt.inc_power();
+	test += t2;
+	test += t3;	
+	test += t4;
+	test += t5;
 }
 
 int main()
