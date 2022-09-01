@@ -38,24 +38,57 @@ void mm1(void)
 	process.add_A_plus(mMatr(lambda));
 	process.auto_A_0();
 	model.bind(process);
+	auto sd = model.get_dist(10);
+	for(auto it = sd.begin(); it != sd.end(); it++){
+		cout << *it << "\t";
+	}
+	cout << endl;
 	// Test for memory operations. Add -fsanitize=address
 	Q_in_pow<double> test(process);
 	//test.print();
-	Q_in_pow<double> t2 = test.inc_power();
-	t2.print();
-    Q_in_pow<double> t3 = t2.inc_power();
-    t3.print();
-    Q_in_pow<double> t4 = t3.inc_power();
-    t4.print();
+	Q_in_pow<double> t2 = test.inc_power(1);
+	//t2.print();
+    Q_in_pow<double> t3 = t2.inc_power(1);
+    //t3.print();
+    Q_in_pow<double> t4 = t3.inc_power(1);
+    //t4.print();
 	Q_in_pow<double> tt = test;
 	tt = t4;
-	Q_in_pow<double> t5 = tt.inc_power();
+	Q_in_pow<double> t5 = tt.inc_power(1);
 	test += t2;
 	test += t3;	
 	test += t4;
 	test += t5;
 	test.add_identity_matrix();
-	test.print();
+	//test.print();
+
+	TaylorSeriesTransient<double> trans;
+	trans.bind(process, 5);
+	cout << trans.get_step() << endl;
+	//trans.print();
+	std::vector<Eigen::VectorX<double>> pi_0;
+	Eigen::VectorX<double> pi_00 = Eigen::VectorX<double>::Zero(1);
+	pi_00(0) = 1.0;
+	pi_0.push_back(pi_00);
+	
+	std::vector<std::vector<Eigen::VectorX<double>>> t_dist = trans.get_dist(1, pi_0);
+	double time = 0;
+	/*
+	const IOFormat fmt(FullPrecision, DontAlignCols, "\t", " ", "", "", "", "");
+	for(auto it = t_dist.begin(); it != t_dist.end(); it++){
+		cout << "time = " << time << endl;
+		for(auto itl = it->begin(); itl != it->end(); itl++){
+			cout << itl->format(fmt) << ", ";
+		}
+		time += trans.get_step();
+		cout << endl;
+	}
+	//*/
+	std::vector<double> clients = trans.get_mean_clients(100, pi_0);
+	for(auto it = clients.begin(); it != clients.end(); it++){
+		cout << *it << ", ";
+	}
+	cout << endl;
 }
 
 void mjmrss(void)
@@ -141,18 +174,43 @@ void mjmrss(void)
 
     Q_in_pow<double> test(process);
     //test.print();
-    Q_in_pow<double> t2 = test.inc_power();
+    Q_in_pow<double> t2 = test.inc_power(1);
 	//t2.print();
-    Q_in_pow<double> t3 = t2.inc_power();
+    Q_in_pow<double> t3 = t2.inc_power(1);
     //t3.print();
-    Q_in_pow<double> t4 = t3.inc_power();
+    Q_in_pow<double> t4 = t3.inc_power(1);
 	Q_in_pow<double> tt = test;
 	tt = t4;
-	Q_in_pow<double> t5 = tt.inc_power();
+	Q_in_pow<double> t5 = tt.inc_power(1);
 	test += t2;
 	test += t3;	
 	test += t4;
 	test += t5;
+
+
+	TaylorSeriesTransient<double> trans;
+	trans.bind(process, 10);
+	cout << trans.get_step() << endl;
+	//trans.print();
+	std::vector<Eigen::VectorX<double>> pi_0;
+	Eigen::VectorX<double> pi_00 = Eigen::VectorX<double>::Zero(2);
+	pi_00(0) = 0.5;
+	pi_00(1) = 0.5;
+	pi_0.push_back(pi_00);
+	
+	std::vector<std::vector<Eigen::VectorX<double>>> t_dist = trans.get_dist(10, pi_0);
+	double time = 0;
+	/*
+	const IOFormat fmt(FullPrecision, DontAlignCols, "\t", " ", "", "", "", "");
+	for(auto it = t_dist.begin(); it != t_dist.end(); it++){
+		cout << "time = " << time << endl;
+		for(auto itl = it->begin(); itl != it->end(); itl++){
+			cout << itl->format(fmt) << ", ";
+		}
+		time += trans.get_step();
+		cout << endl;
+	}
+	//*/
 }
 
 int main()

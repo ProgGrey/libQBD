@@ -56,7 +56,7 @@ namespace libQBD
             power = 0;
         }
         
-        Q_in_pow<matrix_element_type>(QBD<matrix_element_type> &proc)
+        Q_in_pow<matrix_element_type>(const QBD<matrix_element_type> &proc)
         {
             process = &proc;
             power = 1;
@@ -112,7 +112,7 @@ namespace libQBD
             }
         }
 
-        Q_in_pow<matrix_element_type> inc_power()
+        Q_in_pow<matrix_element_type> inc_power(matrix_element_type step)
         {
             Q_in_pow<matrix_element_type> ret;
             ret.power = this->power + 1;
@@ -130,7 +130,7 @@ namespace libQBD
                     true_k = this->matrices.size() - 1;
                 }
                 m = new Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>();
-                *m = (*matrices[true_k][0]) * (*(this->process->get_A_minus(k - power)));
+                *m = (*matrices[true_k][0]) * (*(this->process->get_A_minus(k - power))) * step;
                 ret.matrices[k].push_back(m);
             }
             //central diagonals:
@@ -185,7 +185,7 @@ namespace libQBD
                     }
                     // Matrix multiplication:
                     for(std::size_t i = left; i <= right; i++){
-                        *m += *(this->matrices[true_k][i]) * (*A[pos]);
+                        *m += *(this->matrices[true_k][i]) * (*A[pos]) * step;
                         pos++;
                     }
                     ret.matrices[k].push_back(m);
@@ -198,7 +198,7 @@ namespace libQBD
                     true_k = this->matrices.size() - 1;
                 }
                 m = new Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>();
-                *m = (*matrices[true_k].back()) * (*(this->process->get_A_plus(k + power)));
+                *m = (*matrices[true_k].back()) * (*(this->process->get_A_plus(k + power))) * step;
                 ret.matrices[k].push_back(m);
             }
             return ret;
@@ -288,6 +288,50 @@ namespace libQBD
             }
             return *this;
         }
+
+
+        std::vector<Eigen::VectorX<matrix_element_type>> mull_by_vector(std::vector<Eigen::VectorX<matrix_element_type>> pi)
+        {
+            std::vector<Eigen::VectorX<matrix_element_type>> ret;
+            //Initialize result:
+            for(auto it = pi.begin(); it != pi.end(); it++){
+                Eigen::VectorX<matrix_element_type> tmp = Eigen::VectorX<matrix_element_type>::Zero(it->size());
+                ret.push_back(tmp);
+            }
+            std::size_t c = 0;
+            for(std::size_t k = pi.size(); k < std::min(matrices.size(), pi.size() + power); k++){
+                Eigen::VectorX<matrix_element_type> tmp = Eigen::VectorX<matrix_element_type>::Zero(matrices[k].front()->rows());
+                ret.push_back(tmp);
+                c++;
+            }
+            for(std::size_t k = 0; k < (power - c); k++){
+                Eigen::VectorX<matrix_element_type> tmp = Eigen::VectorX<matrix_element_type>::Zero(matrices.back().front()->rows());
+                ret.push_back(tmp);
+            }
+            // vector by matrix multiplication
+            std::size_t matrix_num = 0;
+            std::size_t col_num = 0;
+            for(std::size_t k = 0; k < pi.size(); k++){
+                if(k > power){
+                    col_num++;
+                }
+                for(std::size_t j = 0; j < matrices[matrix_num].size(); j++)
+                {
+                    ret[col_num + j] += (pi[k].transpose() *  (*matrices[matrix_num][j]));
+                }
+                if((matrix_num + 1) < matrices.size()){
+                    matrix_num++;
+                }
+            }
+            std::size_t pos = 0;
+            // deleting zeroes:
+            auto it = ret.end();
+            do{
+                it--;
+            }while((it != ret.begin()) && (it->maxCoeff() <= matrix_element_type(0.0)));
+            ret.resize(ret.size() - (ret.end() - it) + 1);
+            return ret;
+        }
     };
 
     template<typename matrix_element_type>
@@ -301,18 +345,30 @@ namespace libQBD
         {
             matrix_element_type ret = 0;
             for(auto it = proc.A_0.begin(); it != proc.A_0.end(); it++){
-                std::min(it->minCoeff(), ret);
+                ret = std::min(it->minCoeff(), ret);
             }
             return ret;
         }
 
-        void computate_right_matrix(unsigned int order);
+        void computate_right_matrix(uint8_t order)
+        {
+            matrix_element_type w = matrix_element_type(1);
+            Q_in_pow<matrix_element_type> P = B;
+            for(uint_fast8_t k = 1; k < order; k++){
+                P = P.inc_power(this->h);
+                Q_in_pow<matrix_element_type> tmp = P;
+                w /= k + 1;
+                tmp.mull_by_const(w);
+                B += tmp;
+            }
+            B.add_identity_matrix();
+        }
 
         public:
-        void bind(const QBD<matrix_element_type> &proc, unsigned int order, matrix_element_type step)
+        void bind(const QBD<matrix_element_type> &proc, unsigned int order, matrix_element_type step = matrix_element_type(-1.0))
         {
             if(step < 0){
-                h = -1/get_min_element(proc);
+                h = matrix_element_type(-1.0)/get_min_element(proc);
             } else{
                 h = step;
             }
@@ -326,24 +382,85 @@ namespace libQBD
             return h;
         }
 
-        std::vector<std::vector<Eigen::VectorX<matrix_element_type>>> get_dist(matrix_element_type max_time, std::vector<Eigen::VectorX<matrix_element_type>> pi_0) 
+        void print(void)
         {
+            B.print();
+        }
+        
 
+        std::vector<std::vector<Eigen::VectorX<matrix_element_type>>> get_dist(matrix_element_type max_time, const std::vector<Eigen::VectorX<matrix_element_type>> &pi_0) 
+        {
+            std::vector<std::vector<Eigen::VectorX<matrix_element_type>>> ret;
+            std::vector<Eigen::VectorX<matrix_element_type>> pi = pi_0;
+            ret.push_back(pi);
+            matrix_element_type time = 0;
+            do{
+                pi = B.mull_by_vector(pi);
+                ret.push_back(pi);
+                time += h;
+            }while(time <= max_time);
+            return ret;
         }
 
         std::vector<matrix_element_type> get_mean_clients(matrix_element_type max_time, std::vector<Eigen::VectorX<matrix_element_type>> pi_0)
         {
-
+            std::vector<matrix_element_type> ret;
+            std::vector<Eigen::VectorX<matrix_element_type>> pi = pi_0;
+            matrix_element_type mean = 0;
+            for(std::size_t k = 1; k < pi.size(); k++){
+                mean += pi[k].sum()*k;
+            }
+            ret.push_back(mean);
+            matrix_element_type time = 0;
+            do{
+                pi = B.mull_by_vector(pi);
+                mean = 0;
+                for(std::size_t k = 1; k < pi.size(); k++){
+                    mean += pi[k].sum()*k;
+                }
+                ret.push_back(mean);
+                time += h;
+            }while(time <= max_time);
+            return ret;
         }
 
         std::vector<matrix_element_type> get_mean_queue(std::vector<Eigen::VectorX<matrix_element_type>> queue_size_vector, matrix_element_type max_time, std::vector<Eigen::VectorX<matrix_element_type>> pi_0)
         {
-
+            std::vector<matrix_element_type> ret;
+            std::vector<Eigen::VectorX<matrix_element_type>> pi = pi_0;
+            matrix_element_type mean = 0;
+            Eigen::VectorX<matrix_element_type> qvec = queue_size_vector[0];
+            for(std::size_t k = 1; k < pi.size(); k++){
+                if(k < queue_size_vector.size()){
+                    qvec = queue_size_vector[k];
+                } else{
+                    qvec.array() += matrix_element_type(1.0);
+                }
+                mean += (pi[k] * qvec).sum();
+            }
+            ret.push_back(mean);
+            matrix_element_type time = 0;
+            do{
+                pi = B.mull_by_vector(pi);
+                mean = 0;
+                qvec = queue_size_vector[0];
+                for(std::size_t k = 1; k < pi.size(); k++){
+                    if(k < queue_size_vector.size()){
+                        qvec = queue_size_vector[k];
+                    } else{
+                        qvec.array() += matrix_element_type(1.0);
+                    }
+                    mean += (pi[k] * qvec).sum();
+                }
+                ret.push_back(mean);
+                time += h;
+            }while(time <= max_time);
+            return ret;
         }
     };
 
     template<>
-    void TaylorSeriesTransient<double>::computate_right_matrix(unsigned int order)
+    void TaylorSeriesTransient<double>::computate_right_matrix(uint8_t order)
     {
         static const double weight[177] = {1.00000000000000000e+00, 5.00000000000000000e-01, 1.66666666666666667e-01, 4.16666666666666667e-02, 8.33333333333333333e-03, 
                 1.38888888888888889e-03, 1.98412698412698413e-04, 2.48015873015873016e-05, 2.75573192239858907e-06, 2.75573192239858907e-07, 2.50521083854417188e-08, 
@@ -379,8 +496,8 @@ namespace libQBD
             order = 177;
         }
         Q_in_pow<double> P = B;
-        for(unsigned int k = 1; k < order; k++){
-            P = P.inc_power();
+        for(uint_fast8_t k = 1; k < order; k++){
+            P = P.inc_power(this->h);
             Q_in_pow<double> tmp = P;
             tmp.mull_by_const(weight[k]);
             B += tmp;
@@ -389,19 +506,19 @@ namespace libQBD
     }
 
     template<>
-    void TaylorSeriesTransient<float>::computate_right_matrix(unsigned int order)
+    void TaylorSeriesTransient<float>::computate_right_matrix(uint8_t order)
     {
         static const float weight[38] ={1.00000000e+00, 5.00000000e-01, 1.66666667e-01, 4.16666667e-02, 8.33333333e-03, 1.38888889e-03, 1.98412698e-04, 
                 2.48015873e-05, 2.75573192e-06, 2.75573192e-07, 2.50521084e-08, 2.08767570e-09, 1.60590438e-10, 1.14707456e-11, 7.64716373e-13, 4.77947733e-14,
                 2.81145725e-15, 1.56192070e-16, 8.22063525e-18, 4.11031762e-19, 1.95729411e-20, 8.89679139e-22, 3.86817017e-23, 1.61173757e-24, 6.44695028e-26, 
                 2.47959626e-27, 9.18368986e-29, 3.27988924e-30, 1.13099629e-31, 3.76998763e-33, 1.21612504e-34, 3.80039075e-36, 1.15163356e-37, 3.38715754e-39, 
-                9.67759296e-41, 2.68822027e-42, 7.26546018e-44, 1.91196321e-45};   
+                9.67759296e-41, 2.68822027e-42, 7.26546018e-44, 1.91196321e-45}; 
         if(order > 38){
             order = 38;
         }
         Q_in_pow<float> P = B;
-        for(unsigned int k = 1; k < order; k++){
-            P = P.inc_power();
+        for(uint_fast8_t k = 1; k < order; k++){
+            P = P.inc_power(this->h);
             Q_in_pow<float> tmp = P;
             tmp.mull_by_const(weight[k]);
             B += tmp;
