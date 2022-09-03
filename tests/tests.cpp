@@ -16,6 +16,7 @@
 using namespace Eigen;
 using namespace libQBD;
 using namespace std;
+using namespace libQBD::internal;
 
 typedef Matrix<double, Dynamic, Dynamic> mMatr;
 
