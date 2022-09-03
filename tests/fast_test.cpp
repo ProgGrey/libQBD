@@ -172,6 +172,10 @@ void mjmrss(void)
 	process.add_A_minus(An_minus);
 	process.auto_A_0();
 
+	StationaryDistribution<double> sd;
+	sd.bind(process);
+	cout << sd.get_mean_clients() << endl;
+
     Q_in_pow<double> test(process);
     //test.print();
     Q_in_pow<double> t2 = test.inc_power(1);
@@ -211,10 +215,16 @@ void mjmrss(void)
 		cout << endl;
 	}
 	//*/
+	vector<double> clients = trans.get_mean_clients(40, pi_0);
+	for(auto it = clients.begin(); it != clients.end(); it++){
+		cout << *it << ", ";
+	}
+	cout << endl;
 }
 
 int main()
 {
+	cout.precision(17);
     mm1();
     mjmrss();
 }
