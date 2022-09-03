@@ -10,338 +10,319 @@
 
 #include "base.hpp"
 #include <type_traits>
-#include <iostream>
 
 namespace libQBD
 {
-    template<typename matrix_element_type>
-    class Q_in_pow
+    namespace internal
     {
-        private:
-        std::vector<std::vector<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>*>> matrices;
-        uint8_t power;
-        const QBD<matrix_element_type> *process;
+        template<typename matrix_element_type>
+        class Q_in_pow
+        {
+            private:
+            std::vector<std::vector<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>*>> matrices;
+            uint8_t power;
+            const QBD<matrix_element_type> *process;
 
-        void free_memory(void)
-        {
-            if(power != 0 ){
-                for(auto it = matrices.begin(); it != matrices.end(); it++){
-                    for(auto itl = it->begin(); itl != it->end(); itl++){
-                        delete *itl;
+            void free_memory(void)
+            {
+                if(power != 0 ){
+                    for(auto it = matrices.begin(); it != matrices.end(); it++){
+                        for(auto itl = it->begin(); itl != it->end(); itl++){
+                            delete *itl;
+                        }
+                        it->clear();
                     }
-                    it->clear();
+                    matrices.clear();
                 }
-                matrices.clear();
             }
-        }
 
-        void copy_from(const Q_in_pow<matrix_element_type> &right)
-        {
-            this->power = right.power;
-            this->process = right.process;
-            for(std::size_t k = 0; k < right.matrices.size(); k++){
-                std::vector<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>*> tmp;
-                Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* m;
-                for(std::size_t i = 0; i < right.matrices[k].size(); i++){
-                    m = new Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>(*right.matrices[k][i]);
-                    tmp.push_back(m);
+            void copy_from(const Q_in_pow<matrix_element_type> &right)
+            {
+                this->power = right.power;
+                this->process = right.process;
+                for(std::size_t k = 0; k < right.matrices.size(); k++){
+                    std::vector<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>*> tmp;
+                    Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* m;
+                    for(std::size_t i = 0; i < right.matrices[k].size(); i++){
+                        m = new Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>(*right.matrices[k][i]);
+                        tmp.push_back(m);
+                    }
+                    this->matrices.push_back(tmp);
                 }
-                this->matrices.push_back(tmp);
             }
-        }
 
-        public:
-        Q_in_pow<matrix_element_type>()
-        {
-            power = 0;
-        }
-        
-        Q_in_pow<matrix_element_type>(const QBD<matrix_element_type> &proc)
-        {
-            process = &proc;
-            power = 1;
-            if((proc.A_0.size()) > 0 && (proc.A_plus.size() > 0) && (proc.A_minus.size() > 0)){
-                std::vector<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>*> tmp;
-                Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* m;
-                m = new Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>(proc.A_0[0]);
-                tmp.push_back(m);
-                m = new Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>(proc.A_plus[0]);
-                tmp.push_back(m);
-                matrices.push_back(tmp);
-                std::size_t im = 0;
-                std::size_t i0 = 1;
-                std::size_t ip = 1;
-                for(std::size_t k = 1; k < std::max(std::max(proc.A_minus.size() + 1, proc.A_0.size()), proc.A_plus.size()); k++){
-                    std::vector<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>*> tmp2;
-                    m = new Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>(proc.A_minus[im]);
-                    tmp2.push_back(m);
-                    m = new Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>(proc.A_0[i0]);
-                    tmp2.push_back(m);
-                    m = new Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>(proc.A_plus[ip]);
-                    tmp2.push_back(m);
-                    matrices.push_back(tmp2);
-                    im++;
-                    i0++;
-                    ip++;
-                    if(im == proc.A_minus.size()){
-                        im--;
-                    }
-                    if(i0 == proc.A_0.size()){
-                        i0--;
-                    }
-                    if(ip == proc.A_plus.size()){
-                        ip--;
-                    }
-                }
-            }
-        }
-        
-        ~Q_in_pow<matrix_element_type>()
-        {
-            free_memory();
-        }
-
-        void print()
-        {
-            for(auto it = matrices.begin(); it != matrices.end(); it++){
-                std::cout << "level:" << it - matrices.begin() << std::endl;
-                for(auto itl = it->begin(); itl != it->end(); itl++){
-                    std::cout << **itl << std::endl;
-                }
-                std::cout << std::endl;
-            }
-        }
-
-        Q_in_pow<matrix_element_type> inc_power(matrix_element_type step)
-        {
-            Q_in_pow<matrix_element_type> ret;
-            ret.power = this->power + 1;
-            ret.process = this->process;
-            //prepare:
-            for(std::size_t k = 0; k <= this->matrices.size(); k++){
-                std::vector<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>*> tmp;
-                ret.matrices.push_back(tmp);
-            }
-            Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* m;
-            // lower diagonal:
-            for(std::size_t k = power + 1; k < ret.matrices.size(); k++){
-                std::size_t true_k = k;
-                if(true_k >= this->matrices.size()){
-                    true_k = this->matrices.size() - 1;
-                }
-                m = new Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>();
-                *m = (*matrices[true_k][0]) * (*(this->process->get_A_minus(k - power))) * step;
-                ret.matrices[k].push_back(m);
-            }
-            //central diagonals:
-            for(std::size_t k = 0; k <  ret.matrices.size(); k++){// row of left matrix
-                std::size_t true_k = k;
-                if(true_k >= this->matrices.size()){
-                    true_k = this->matrices.size() - 1;
-                }
-                for(std::size_t j = 0; j < matrices[true_k].size(); j++){// Column of right matrix
-                    m = new Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>(matrices[true_k][j]->rows(), matrices[true_k][j]->cols());
-                    m->setZero();
-                    const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* A[3] = {nullptr, nullptr, nullptr};
-                    // Columns number for right matrix:
-                    std::size_t col = k + j;
-                    if(k >= power){
-                        col -= power;
-                    } else if(k < power){
-                        col = j;
-                    }
-                    // Non zero bounders for k row in left matrix:
-                    std::size_t left, right;
-                    if(j > 0){
-                        left = j - 1;
-                    } else{
-                        left = 0;
-                    }
-                    right = std::min(j+1, matrices[true_k].size() - 1);
-                    // Non zero elements of right matrix:
-                    if(col == 0){
-                        A[0] = this->process->get_A_0(0);
-                        A[1] = this->process->get_A_minus(1);
-                    }else{
-                        A[0] = this->process->get_A_plus(col-1);
-                        A[1] = this->process->get_A_0(col);
-                        A[2] = this->process->get_A_minus(col+1);
-                    }
-                    // Numbers of zeroes in col in left matrix and in row k in right matrix
-                    std::size_t zUp, zLeft;
-                    if(col > 1){
-                        zUp = col - 1;
-                    } else{
-                        zUp = 0;
-                    }
-                    if(k > power){
-                        zLeft = k - power;
-                    } else{
-                        zLeft = 0;
-                    }
-                    uint_fast8_t pos = 0;
-                    if(zUp < zLeft && col != 0){
-                        pos++;
-                    }
-                    // Matrix multiplication:
-                    for(std::size_t i = left; i <= right; i++){
-                        *m += *(this->matrices[true_k][i]) * (*A[pos]) * step;
-                        pos++;
-                    }
-                    ret.matrices[k].push_back(m);
-                }
-            }
-            // Upper diagonal:
-            for(std::size_t k = 0; k < ret.matrices.size(); k++){
-                std::size_t true_k = k;
-                if(true_k >= this->matrices.size()){
-                    true_k = this->matrices.size() - 1;
-                }
-                m = new Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>();
-                *m = (*matrices[true_k].back()) * (*(this->process->get_A_plus(k + power))) * step;
-                ret.matrices[k].push_back(m);
-            }
-            return ret;
-        }
-
-        Q_in_pow<matrix_element_type>(const Q_in_pow<matrix_element_type> &right)
-        {
-            copy_from(right);
-        }
-
-        Q_in_pow<matrix_element_type>&  operator=(const Q_in_pow<matrix_element_type> &right)
-        {
-            if (this == &right){
-                return *this;
+            public:
+            Q_in_pow<matrix_element_type>()
+            {
+                power = 0;
             }
             
-            free_memory();
-
-            copy_from(right);
-            return *this;
-        }
-
-        void mull_by_const(matrix_element_type cons)
-        {
-            for(auto it = matrices.begin(); it != matrices.end(); it++){
-                for(auto itl = it->begin(); itl != it->end(); itl++){
-                    **itl *= cons;
-                }
-            }
-        }
-
-        void add_identity_matrix(void)
-        {
-            std::size_t pos = 0;
-            for(std::size_t k = 0; k < matrices.size(); k++){
-                Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* m = matrices[k][pos];
-                *m += m->Identity(m->rows(), m->cols());
-                if(k < power){
-                    pos++;
-                }
-            }
-            /*
-            for(auto it = matrices.begin(); it != matrices.end(); it++){
-                std::size_t center = (it->size() >> 1) + 1;
-                if(it - matrices.begin() < power + 1){
-                    center -= power - 1;
-                }
-                Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* m = it->at(center);
-                
-            }
-            //*/
-        }
-
-        Q_in_pow<matrix_element_type>&  operator+=(const Q_in_pow<matrix_element_type> &right)
-        {
-            if (this == &right){
-                for(auto it = matrices.begin(); it != matrices.end(); it++){
-                    for(auto itl = it->begin(); itl != it->end(); itl++){
-                        **itl *= 2;
+            Q_in_pow<matrix_element_type>(const QBD<matrix_element_type> &proc)
+            {
+                process = &proc;
+                power = 1;
+                if((proc.A_0.size()) > 0 && (proc.A_plus.size() > 0) && (proc.A_minus.size() > 0)){
+                    std::vector<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>*> tmp;
+                    Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* m;
+                    m = new Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>(proc.A_0[0]);
+                    tmp.push_back(m);
+                    m = new Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>(proc.A_plus[0]);
+                    tmp.push_back(m);
+                    matrices.push_back(tmp);
+                    std::size_t im = 0;
+                    std::size_t i0 = 1;
+                    std::size_t ip = 1;
+                    for(std::size_t k = 1; k < std::max(std::max(proc.A_minus.size() + 1, proc.A_0.size()), proc.A_plus.size()); k++){
+                        std::vector<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>*> tmp2;
+                        m = new Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>(proc.A_minus[im]);
+                        tmp2.push_back(m);
+                        m = new Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>(proc.A_0[i0]);
+                        tmp2.push_back(m);
+                        m = new Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>(proc.A_plus[ip]);
+                        tmp2.push_back(m);
+                        matrices.push_back(tmp2);
+                        im++;
+                        i0++;
+                        ip++;
+                        if(im == proc.A_minus.size()){
+                            im--;
+                        }
+                        if(i0 == proc.A_0.size()){
+                            i0--;
+                        }
+                        if(ip == proc.A_plus.size()){
+                            ip--;
+                        }
                     }
                 }
-            } else{
-                if(this->power >= right.power){
-                    for(std::size_t k = 0; k < this->matrices.size(); k++){
-                        std::size_t rk = k;
-                        if(rk >= right.matrices.size()){
-                            rk = right.matrices.size() - 1;
+            }
+            
+            ~Q_in_pow<matrix_element_type>()
+            {
+                free_memory();
+            }
+
+            Q_in_pow<matrix_element_type> inc_power(matrix_element_type step)
+            {
+                Q_in_pow<matrix_element_type> ret;
+                ret.power = this->power + 1;
+                ret.process = this->process;
+                //prepare:
+                for(std::size_t k = 0; k <= this->matrices.size(); k++){
+                    std::vector<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>*> tmp;
+                    ret.matrices.push_back(tmp);
+                }
+                Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* m;
+                // lower diagonal:
+                for(std::size_t k = power + 1; k < ret.matrices.size(); k++){
+                    std::size_t true_k = k;
+                    if(true_k >= this->matrices.size()){
+                        true_k = this->matrices.size() - 1;
+                    }
+                    m = new Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>();
+                    *m = (*matrices[true_k][0]) * (*(this->process->get_A_minus(k - power))) * step;
+                    ret.matrices[k].push_back(m);
+                }
+                //central diagonals:
+                for(std::size_t k = 0; k <  ret.matrices.size(); k++){// row of left matrix
+                    std::size_t true_k = k;
+                    if(true_k >= this->matrices.size()){
+                        true_k = this->matrices.size() - 1;
+                    }
+                    for(std::size_t j = 0; j < matrices[true_k].size(); j++){// Column of right matrix
+                        m = new Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>(matrices[true_k][j]->rows(), matrices[true_k][j]->cols());
+                        m->setZero();
+                        const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* A[3] = {nullptr, nullptr, nullptr};
+                        // Columns number for right matrix:
+                        std::size_t col = k + j;
+                        if(k >= power){
+                            col -= power;
+                        } else if(k < power){
+                            col = j;
                         }
-                        std::size_t first;
-                        // Firs p+2 rows:
-                        if(k < (right.power + static_cast<unsigned>(1))){
-                            first = 0;
+                        // Non zero bounders for k row in left matrix:
+                        std::size_t left, right;
+                        if(j > 0){
+                            left = j - 1;
                         } else{
-                            // Always even:
-                            first = (this->matrices[k].size() - right.matrices[rk].size())/2;
+                            left = 0;
                         }
-                        for(std::size_t j = first; j < (first + right.matrices[rk].size()); j++){
-                            *(this->matrices[k][j]) += *(right.matrices[rk][j-first]);
+                        right = std::min(j+1, matrices[true_k].size() - 1);
+                        // Non zero elements of right matrix:
+                        if(col == 0){
+                            A[0] = this->process->get_A_0(0);
+                            A[1] = this->process->get_A_minus(1);
+                        }else{
+                            A[0] = this->process->get_A_plus(col-1);
+                            A[1] = this->process->get_A_0(col);
+                            A[2] = this->process->get_A_minus(col+1);
+                        }
+                        // Numbers of zeroes in col in left matrix and in row k in right matrix
+                        std::size_t zUp, zLeft;
+                        if(col > 1){
+                            zUp = col - 1;
+                        } else{
+                            zUp = 0;
+                        }
+                        if(k > power){
+                            zLeft = k - power;
+                        } else{
+                            zLeft = 0;
+                        }
+                        uint_fast8_t pos = 0;
+                        if(zUp < zLeft && col != 0){
+                            pos++;
+                        }
+                        // Matrix multiplication:
+                        for(std::size_t i = left; i <= right; i++){
+                            *m += *(this->matrices[true_k][i]) * (*A[pos]) * step;
+                            pos++;
+                        }
+                        ret.matrices[k].push_back(m);
+                    }
+                }
+                // Upper diagonal:
+                for(std::size_t k = 0; k < ret.matrices.size(); k++){
+                    std::size_t true_k = k;
+                    if(true_k >= this->matrices.size()){
+                        true_k = this->matrices.size() - 1;
+                    }
+                    m = new Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>();
+                    *m = (*matrices[true_k].back()) * (*(this->process->get_A_plus(k + power))) * step;
+                    ret.matrices[k].push_back(m);
+                }
+                return ret;
+            }
+
+            Q_in_pow<matrix_element_type>(const Q_in_pow<matrix_element_type> &right)
+            {
+                copy_from(right);
+            }
+
+            Q_in_pow<matrix_element_type>&  operator=(const Q_in_pow<matrix_element_type> &right)
+            {
+                if (this == &right){
+                    return *this;
+                }
+                
+                free_memory();
+
+                copy_from(right);
+                return *this;
+            }
+
+            void mull_by_const(matrix_element_type cons)
+            {
+                for(auto it = matrices.begin(); it != matrices.end(); it++){
+                    for(auto itl = it->begin(); itl != it->end(); itl++){
+                        **itl *= cons;
+                    }
+                }
+            }
+
+            void add_identity_matrix(void)
+            {
+                std::size_t pos = 0;
+                for(std::size_t k = 0; k < matrices.size(); k++){
+                    Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* m = matrices[k][pos];
+                    *m += m->Identity(m->rows(), m->cols());
+                    if(k < power){
+                        pos++;
+                    }
+                }
+            }
+
+            Q_in_pow<matrix_element_type>&  operator+=(const Q_in_pow<matrix_element_type> &right)
+            {
+                if (this == &right){
+                    for(auto it = matrices.begin(); it != matrices.end(); it++){
+                        for(auto itl = it->begin(); itl != it->end(); itl++){
+                            **itl *= 2;
                         }
                     }
                 } else{
-                    Q_in_pow<matrix_element_type> tmp = *this;
-                    free_memory();
-                    copy_from(right);
-                    *this += tmp;
+                    if(this->power >= right.power){
+                        for(std::size_t k = 0; k < this->matrices.size(); k++){
+                            std::size_t rk = k;
+                            if(rk >= right.matrices.size()){
+                                rk = right.matrices.size() - 1;
+                            }
+                            std::size_t first;
+                            // Firs p+2 rows:
+                            if(k < (right.power + static_cast<unsigned>(1))){
+                                first = 0;
+                            } else{
+                                // Always even:
+                                first = (this->matrices[k].size() - right.matrices[rk].size())/2;
+                            }
+                            for(std::size_t j = first; j < (first + right.matrices[rk].size()); j++){
+                                *(this->matrices[k][j]) += *(right.matrices[rk][j-first]);
+                            }
+                        }
+                    } else{
+                        Q_in_pow<matrix_element_type> tmp = *this;
+                        free_memory();
+                        copy_from(right);
+                        *this += tmp;
+                    }
                 }
+                return *this;
             }
-            return *this;
-        }
 
 
-        std::vector<Eigen::VectorX<matrix_element_type>> mull_by_vector(std::vector<Eigen::VectorX<matrix_element_type>> pi)
-        {
-            std::vector<Eigen::VectorX<matrix_element_type>> ret;
-            //Initialize result:
-            for(auto it = pi.begin(); it != pi.end(); it++){
-                Eigen::VectorX<matrix_element_type> tmp = Eigen::VectorX<matrix_element_type>::Zero(it->size());
-                ret.push_back(tmp);
-            }
-            std::size_t c = 0;
-            for(std::size_t k = pi.size(); k < std::min(matrices.size(), pi.size() + power); k++){
-                Eigen::VectorX<matrix_element_type> tmp = Eigen::VectorX<matrix_element_type>::Zero(matrices[k].front()->rows());
-                ret.push_back(tmp);
-                c++;
-            }
-            for(std::size_t k = 0; k < (power - c); k++){
-                Eigen::VectorX<matrix_element_type> tmp = Eigen::VectorX<matrix_element_type>::Zero(matrices.back().front()->rows());
-                ret.push_back(tmp);
-            }
-            // vector by matrix multiplication
-            std::size_t matrix_num = 0;
-            std::size_t col_num = 0;
-            for(std::size_t k = 0; k < pi.size(); k++){
-                if(k > power){
-                    col_num++;
+            std::vector<Eigen::VectorX<matrix_element_type>> mull_by_vector(std::vector<Eigen::VectorX<matrix_element_type>> pi)
+            {
+                std::vector<Eigen::VectorX<matrix_element_type>> ret;
+                //Initialize result:
+                for(auto it = pi.begin(); it != pi.end(); it++){
+                    Eigen::VectorX<matrix_element_type> tmp = Eigen::VectorX<matrix_element_type>::Zero(it->size());
+                    ret.push_back(tmp);
                 }
-                for(std::size_t j = 0; j < matrices[matrix_num].size(); j++)
-                {
-                    ret[col_num + j] += (pi[k].transpose() *  (*matrices[matrix_num][j]));
+                std::size_t c = 0;
+                for(std::size_t k = pi.size(); k < std::min(matrices.size(), pi.size() + power); k++){
+                    Eigen::VectorX<matrix_element_type> tmp = Eigen::VectorX<matrix_element_type>::Zero(matrices[k].front()->rows());
+                    ret.push_back(tmp);
+                    c++;
                 }
-                if((matrix_num + 1) < matrices.size()){
-                    matrix_num++;
+                for(std::size_t k = 0; k < (power - c); k++){
+                    Eigen::VectorX<matrix_element_type> tmp = Eigen::VectorX<matrix_element_type>::Zero(matrices.back().front()->rows());
+                    ret.push_back(tmp);
                 }
+                // vector by matrix multiplication
+                std::size_t matrix_num = 0;
+                std::size_t col_num = 0;
+                for(std::size_t k = 0; k < pi.size(); k++){
+                    if(k > power){
+                        col_num++;
+                    }
+                    for(std::size_t j = 0; j < matrices[matrix_num].size(); j++)
+                    {
+                        ret[col_num + j] += (pi[k].transpose() *  (*matrices[matrix_num][j]));
+                    }
+                    if((matrix_num + 1) < matrices.size()){
+                        matrix_num++;
+                    }
+                }
+                // deleting zeroes:
+                std::size_t z = 0;
+                auto it = ret.end() - 1;
+                while((it != ret.begin()) && (it->maxCoeff() <= matrix_element_type(0.0))){
+                    it--;
+                    z++;
+                }
+                std::size_t nsize = ret.size() - z;
+                ret.resize(nsize);
+                return ret;
             }
-            // deleting zeroes:
-            std::size_t z = 0;
-            auto it = ret.end() - 1;
-            while((it != ret.begin()) && (it->maxCoeff() <= matrix_element_type(0.0))){
-                it--;
-                z++;
-            }
-            std::size_t nsize = ret.size() - z;
-            ret.resize(nsize);
-            return ret;
-        }
-    };
+        };
+    }
 
     template<typename matrix_element_type>
     class TaylorSeriesTransient
     {
         private:
         matrix_element_type h;
-        Q_in_pow<matrix_element_type> B;
+        internal::Q_in_pow<matrix_element_type> B;
 
         matrix_element_type get_min_element(const QBD<matrix_element_type> &proc)
         {
@@ -355,10 +336,10 @@ namespace libQBD
         void computate_right_matrix(uint8_t order)
         {
             matrix_element_type w = matrix_element_type(1);
-            Q_in_pow<matrix_element_type> P = B;
+            internal::Q_in_pow<matrix_element_type> P = B;
             for(uint_fast8_t k = 1; k < order; k++){
                 P = P.inc_power(this->h);
-                Q_in_pow<matrix_element_type> tmp = P;
+                internal::Q_in_pow<matrix_element_type> tmp = P;
                 w /= k + 1;
                 tmp.mull_by_const(w);
                 B += tmp;
@@ -367,6 +348,10 @@ namespace libQBD
         }
 
         public:
+        // Associates a transitional distribution calculation class with a process.
+        // @param proc is a model description.
+        // @param order is a numerical method order, i.e. number of terms of Taylor series.
+        // @param step if positive then the step length of the numerical method. if negative, then the constant multiplied by the maximum possible step length.
         void bind(const QBD<matrix_element_type> &proc, uint8_t order, matrix_element_type step = matrix_element_type(-1.0))
         {
             if(step < 0){
@@ -374,22 +359,20 @@ namespace libQBD
             } else{
                 h = step;
             }
-            B = Q_in_pow<matrix_element_type>(proc);
+            B = internal::Q_in_pow<matrix_element_type>(proc);
             B.mull_by_const(h);
             computate_right_matrix(order);
         }
 
-        matrix_element_type get_step(void)
+        // Returns the current step length of the algorithm.
+        matrix_element_type get_step(void) const
         {
             return h;
         }
 
-        void print(void)
-        {
-            B.print();
-        }
-        
-
+        // Distribution calculation in transient mode
+        // @param max_time is a maximum value of the time for which you want to calculate the distribution.
+        // @param pi_0 is a distribution at zero time.
         std::vector<std::vector<Eigen::VectorX<matrix_element_type>>> get_dist(matrix_element_type max_time, const std::vector<Eigen::VectorX<matrix_element_type>> &pi_0) 
         {
             std::vector<std::vector<Eigen::VectorX<matrix_element_type>>> ret;
@@ -404,7 +387,10 @@ namespace libQBD
             return ret;
         }
 
-        std::vector<matrix_element_type> get_mean_clients(matrix_element_type max_time, std::vector<Eigen::VectorX<matrix_element_type>> pi_0)
+        // Returns mean customers in system in transient mode.
+        // @param max_time is a maximum value of the time for which you want to calculate the mean numbers of customers.
+        // @param pi_0 is a distribution at zero time.
+        std::vector<matrix_element_type> get_mean_clients(matrix_element_type max_time, const std::vector<Eigen::VectorX<matrix_element_type>> &pi_0)
         {
             std::vector<matrix_element_type> ret;
             std::vector<Eigen::VectorX<matrix_element_type>> pi = pi_0;
@@ -426,7 +412,12 @@ namespace libQBD
             return ret;
         }
 
-        std::vector<matrix_element_type> get_mean_queue(std::vector<Eigen::VectorX<matrix_element_type>> queue_size_vector, matrix_element_type max_time, std::vector<Eigen::VectorX<matrix_element_type>> pi_0)
+        // Returns mean queue length in transient mode.
+        // @param queue_size_vector is a vectors containing the queue sizes for the first few levels.
+        // @param max_time is a maximum value of the time for which you want to calculate the mean numbers of customers.
+        // @param pi_0 is a distribution at zero time.
+        std::vector<matrix_element_type> get_mean_queue(const std::vector<Eigen::VectorX<matrix_element_type>> &queue_size_vector, matrix_element_type max_time, 
+                                                        const std::vector<Eigen::VectorX<matrix_element_type>> &pi_0)
         {
             std::vector<matrix_element_type> ret;
             std::vector<Eigen::VectorX<matrix_element_type>> pi = pi_0;
@@ -497,10 +488,10 @@ namespace libQBD
         if(order > 177){
             order = 177;
         }
-        Q_in_pow<double> P = B;
+        internal::Q_in_pow<double> P = B;
         for(uint_fast8_t k = 1; k < order; k++){
             P = P.inc_power(this->h);
-            Q_in_pow<double> tmp = P;
+            internal::Q_in_pow<double> tmp = P;
             tmp.mull_by_const(weight[k]);
             B += tmp;
         }
@@ -518,10 +509,10 @@ namespace libQBD
         if(order > 38){
             order = 38;
         }
-        Q_in_pow<float> P = B;
+        internal::Q_in_pow<float> P = B;
         for(uint_fast8_t k = 1; k < order; k++){
             P = P.inc_power(this->h);
-            Q_in_pow<float> tmp = P;
+            internal::Q_in_pow<float> tmp = P;
             tmp.mull_by_const(weight[k]);
             B += tmp;
         }

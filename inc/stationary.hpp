@@ -204,6 +204,8 @@ namespace libQBD
         }
 
     public:
+        // Associates a stationary distribution calculation class with a process.
+        // @param proc is a model description.
         void bind(QBD<matrix_element_type> &proc)
         {
             is_rho_computated = false;
@@ -215,26 +217,29 @@ namespace libQBD
             this->process = &proc;
         }
 
+        // Returns rho calculated from Neuts ergodicity criteria.
         matrix_element_type get_rho(void)
         {
             computate_rho();
             return rho;
         }
 
-        // Compute matrix R, i.e. minimal non-negative singular solution of equation R^2 A(-) + R A(0) + A(+) = 0
+        // Returns matrix R, i.e. minimal(in spectral sense) non-negative(componentwise) singular solution of equation R^2 A(-) + R A(0) + A(+) = 0
         Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> get_R(void)
         {
             computate_R();
             return R;
         }
 
-        // Compute matrix G, i.e. minimal non-negative singular solution of equation A(-) + A(0) G + A(+) G^2 = 0
+        // Returns matrix G, i.e. minimal(in spectral sense) non-negative(componentwise) singular solution of equation A(-) + A(0) G + A(+) G^2 = 0
         Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> get_G(void)
         {
             computate_G();
             return G;
         }
 
+        // Returns the distribution from zero level to the specified level.
+        // @param max_level is a maximum level for which it is necessary to calculate distribution.
         std::vector<Eigen::VectorX<matrix_element_type>> get_dist(unsigned int max_level)
         {
             computate_pi_0_c();
@@ -251,12 +256,14 @@ namespace libQBD
             return ret;
         }
 
+        // Returns the distribution from level zero to level c
         std::vector<Eigen::VectorX<matrix_element_type>> get_pi_0_c(void)
         {
             computate_pi_0_c();
             return pi_0_c;
         }
 
+        // Returns mean customers in system.
         matrix_element_type get_mean_clients(void)
         {
             if(is_mean_clients_computated){
@@ -279,6 +286,7 @@ namespace libQBD
             return mean_cl;
         }
 
+        // Returns the sum of distributions from level c to infinity.
         Eigen::VectorX<matrix_element_type> get_sum_from_c_to_inf(void){
             if(!is_sum_from_c_to_inf_computated){
                 computate_pi_0_c();
@@ -289,8 +297,9 @@ namespace libQBD
             return sum_from_c_to_inf;
         }
 
-
-        matrix_element_type get_mean_queue(std::vector<Eigen::VectorX<matrix_element_type>> queue_size_vector)
+        // Returns mean queue length.
+        // @param queue_size_vector is a vectors containing the queue sizes for the first few levels.
+        matrix_element_type get_mean_queue(const std::vector<Eigen::VectorX<matrix_element_type>> &queue_size_vector)
         {
             computate_rho();
             if(this->rho >= 1){

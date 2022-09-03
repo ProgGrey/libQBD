@@ -40,7 +40,8 @@ namespace libQBD
         std::vector<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>> A_0;
         std::vector<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>> A_minus;
 
-
+        //Returns a pointer to the corresponding A(-) matrix
+        // @param level is a level of model.
         const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* get_A_minus(std::size_t level) const{
             if(level == 0){
                 throw libQBD_exception("Matrix A_minus for zero level is undefined.");
@@ -53,6 +54,8 @@ namespace libQBD
             }
         }
 
+        //Returns a pointer to the corresponding A(0) matrix
+        // @param level is a level of model.
         const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* get_A_0(std::size_t level) const{
             if(level >= A_0.size()){
                 return &(A_0.back());
@@ -61,6 +64,8 @@ namespace libQBD
             }
         }
         
+        //Returns a pointer to the corresponding A(+) matrix
+        // @param level is a level of model.
         const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* get_A_plus(std::size_t level) const{
             if(level >= A_plus.size()){
                 return &(A_plus.back());
@@ -68,40 +73,55 @@ namespace libQBD
                 return &(A_plus[level]);
             }
         }
-
+        
+        //Copies the zero-level matrices to the model. In contrast to the other levels, the zero level contains only two matrices
+        // @param A_0 is a transition matrix within a level
+        // @param A_plus is a transition matrix 1 level up
         void add_zero_level(
-            Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> A_0,
-            Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> A_plus)
+            const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> &A_0,
+            const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> &A_plus)
         {
             this->A_0.insert(this->A_0.begin(), A_0);
             this->A_plus.insert(this->A_plus.begin(), A_plus);
         }
 
+        // Adds the next level to the model
+        // @param A_minus is a transition matrix 1 level down
+        // @param A_0 is a transition matrix within a level
+        // @param A_plus is a transition matrix 1 level up
         void add_level(
-            Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> A_minus,
-            Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> A_0,
-            Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> A_plus)
+            const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> &A_minus,
+            const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> &A_0,
+            const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> &A_plus)
         {
             this->A_minus.push_back(A_minus);
             this->A_0.push_back(A_0);
             this->A_plus.push_back(A_plus);
         }
 
-        void add_A_minus(Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> A)
+        // Adds the next transition matrix one level down
+        // @param A is a transition matrix 1 level down
+        void add_A_minus(const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> &A)
         {
             this->A_minus.push_back(A);
         }
 
-        void add_A_0(Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> A)
+        // Adds the next transition matrix within a level
+        // @param A is a transition matrix within a level
+        void add_A_0(const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> &A)
         {
             this->A_0.push_back(A);
         }
 
-        void add_A_plus(Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> A)
+        // Adds the next transition matrix one level up
+        // @param A is a transition matrix 1 level up
+        void add_A_plus(const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> &A)
         {
             this->A_plus.push_back(A);
         }
 
+        // Automatic derivation of transition matrices within levels. The matrices are derived from the condition that the sums over the
+        // row of the generator matrix are equal to zero. Suitable only for models in which there is no transition within the levels.
         void auto_A_0(void)
         {
             std::size_t k = A_0.size();
