@@ -10,7 +10,10 @@
 #ifndef __LIB_QBD_BASE_HPP__
 #define __LIB_QBD_BASE_HPP__
 
+// Crutch for non-standard paths to eigen:
+#ifndef EIGEN_WORLD_VERSION
 #include <eigen3/Eigen/Dense>
+#endif
 #include <vector>
 #include <exception>
 
