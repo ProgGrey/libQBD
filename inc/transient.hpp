@@ -380,7 +380,7 @@ namespace libQBD
         {
             if(step < 0){
                 h = matrix_element_type(step)/get_min_element(proc);
-            } else if(h > 0){
+            } else if(step > 0){
                 h = step;
             } else{
                 throw libQBD_exception("step must be not equal 0.");
