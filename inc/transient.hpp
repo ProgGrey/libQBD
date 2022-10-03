@@ -392,7 +392,7 @@ namespace libQBD
         }
 
         // Returns the current step length of the algorithm.
-        matrix_element_type get_step(void) const
+        matrix_element_type get_step(void)
         {
             check();
             return h;
