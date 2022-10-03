@@ -23,4 +23,5 @@ clean:
 
 # --bug-hunting
 check:
+	cppcheck --enable=all --language=c++ --max-ctu-depth=100 --std=c++11 . && \
 	cppcheck --enable=all --bug-hunting --language=c++ --max-ctu-depth=100 --std=c++11 .

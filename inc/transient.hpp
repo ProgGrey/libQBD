@@ -42,8 +42,8 @@ namespace libQBD
                 this->process = right.process;
                 for(std::size_t k = 0; k < right.matrices.size(); k++){
                     std::vector<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>*> tmp;
-                    Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* m;
                     for(std::size_t i = 0; i < right.matrices[k].size(); i++){
+                        Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* m;
                         m = new Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>(*right.matrices[k][i]);
                         tmp.push_back(m);
                     }
@@ -54,10 +54,11 @@ namespace libQBD
             public:
             Q_in_pow<matrix_element_type>()
             {
+                process = NULL;
                 power = 0;
             }
             
-            Q_in_pow<matrix_element_type>(const QBD<matrix_element_type> &proc)
+            explicit Q_in_pow<matrix_element_type>(const QBD<matrix_element_type> &proc)
             {
                 process = &proc;
                 power = 1;
@@ -137,7 +138,7 @@ namespace libQBD
                         std::size_t col = k + j;
                         if(k >= power){
                             col -= power;
-                        } else if(k < power){
+                        } else{
                             col = j;
                         }
                         // Non zero bounders for k row in left matrix:
@@ -323,6 +324,14 @@ namespace libQBD
         private:
         matrix_element_type h;
         internal::Q_in_pow<matrix_element_type> B;
+        bool is_process_not_binded;
+
+        inline void check(void)
+        {
+            if(is_process_not_binded){
+                throw libQBD_exception("Not binded to the process.");
+            }
+        }
 
         matrix_element_type get_min_element(const QBD<matrix_element_type> &proc)
         {
@@ -348,6 +357,21 @@ namespace libQBD
         }
 
         public:
+        TaylorSeriesTransient(void)
+        {
+            h = 0;
+            is_process_not_binded = true;
+        }
+
+        // Associates a transitional distribution calculation class with a process. You can call bind to rebind process.
+        // @param proc is a model description.
+        // @param order is a numerical method order, i.e. number of terms of Taylor series.
+        // @param step if positive then the step length of the numerical method. if negative, then the constant multiplied by the maximum possible step length.
+        TaylorSeriesTransient(const QBD<matrix_element_type> &proc, uint8_t order, matrix_element_type step = matrix_element_type(-1.0))
+        {
+            bind(proc, order, step);
+        }
+
         // Associates a transitional distribution calculation class with a process.
         // @param proc is a model description.
         // @param order is a numerical method order, i.e. number of terms of Taylor series.
@@ -356,17 +380,21 @@ namespace libQBD
         {
             if(step < 0){
                 h = matrix_element_type(step)/get_min_element(proc);
-            } else{
+            } else if(h > 0){
                 h = step;
+            } else{
+                throw libQBD_exception("step must be not equal 0.");
             }
             B = internal::Q_in_pow<matrix_element_type>(proc);
             B.mull_by_const(h);
             computate_right_matrix(order);
+            is_process_not_binded = false;
         }
 
         // Returns the current step length of the algorithm.
         matrix_element_type get_step(void) const
         {
+            check();
             return h;
         }
 
@@ -375,6 +403,7 @@ namespace libQBD
         // @param pi_0 is a distribution at zero time.
         std::vector<std::vector<Eigen::VectorX<matrix_element_type>>> get_dist(matrix_element_type max_time, const std::vector<Eigen::VectorX<matrix_element_type>> &pi_0) 
         {
+            check();
             std::vector<std::vector<Eigen::VectorX<matrix_element_type>>> ret;
             std::vector<Eigen::VectorX<matrix_element_type>> pi = pi_0;
             ret.push_back(pi);
@@ -392,6 +421,7 @@ namespace libQBD
         // @param pi_0 is a distribution at zero time.
         std::vector<matrix_element_type> get_mean_clients(matrix_element_type max_time, const std::vector<Eigen::VectorX<matrix_element_type>> &pi_0)
         {
+            check();
             std::vector<matrix_element_type> ret;
             std::vector<Eigen::VectorX<matrix_element_type>> pi = pi_0;
             matrix_element_type mean = 0;
@@ -419,6 +449,7 @@ namespace libQBD
         std::vector<matrix_element_type> get_mean_queue(const std::vector<Eigen::VectorX<matrix_element_type>> &queue_size_vector, matrix_element_type max_time, 
                                                         const std::vector<Eigen::VectorX<matrix_element_type>> &pi_0)
         {
+            check();
             std::vector<matrix_element_type> ret;
             std::vector<Eigen::VectorX<matrix_element_type>> pi = pi_0;
             matrix_element_type mean = 0;
