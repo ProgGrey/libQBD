@@ -4,6 +4,9 @@
  *
  * This source code is licensed under the BSD-3 clause license.
  */
+
+#include <iostream>
+
 #define EIGEN_FAST_MATH 1
 #include "../inc/libQBD.hpp"
 
@@ -11,7 +14,6 @@
 #define BOOST_TEST_MAIN
 #define BOOST_TEST_DYN_LINK
 #include <boost/test/unit_test.hpp>
-#include <iostream>
 
 using namespace Eigen;
 using namespace libQBD;
@@ -207,6 +209,8 @@ BOOST_AUTO_TEST_CASE(cluster_model_2_servers)
 			0.700521623032753892879, 0.7003161333657020870547, 0.7003164674779880360944, 0.7004379817181681788796, 0.7001955414542532230016, 0.7004043343428110190985, 
 			0.7003326991105534027326, 0.7002826888548883133012, 0.6999303168764297033988, 0.6998224999358120257398, 0.6996344164239354235235, 0.6996985547186302945022, 
 			0.6996898617380536977706, 0.6999287699176620636266, 0.7003570212822758378479, 0.700073378862502426756, 0.7003429210507907676231, 0.7003110244072008327976};
+	
+	process.fix_diagonal();
 
 	// Taylor series method of 15 order:
 	TaylorSeriesClassic<double> trans;
@@ -249,6 +253,7 @@ BOOST_AUTO_TEST_CASE(M_M_1_model)
 	process.add_A_minus(mMatr(mu));
 	process.add_A_plus(mMatr(lambda));
 	process.auto_A_0();
+	process.fix_diagonal();
 	model.bind(process);
 	// Test for memory operations. Add -fsanitize=address
 	Q_in_pow<double> test(process);
@@ -273,4 +278,28 @@ BOOST_AUTO_TEST_CASE(M_M_1_model)
 	//cout << abs(model.get_R()(0,0) - rho) << endl;
 	BOOST_CHECK(abs(model.get_rho() - rho) < 1e-15);
 	//cout << abs(model.get_rho() - rho) << endl;
+}
+
+
+BOOST_AUTO_TEST_CASE(fix_diagonal)
+{
+	Matrix<double,2,2> A0_0{{1,2},
+						   {3,4}};
+	Matrix<double,2,2> A0_plus{{6,4},
+						   		{9,23}};
+	Matrix<double,Dynamic, Dynamic> Ac_0{{12,43},
+						   				 {21,-90}};
+	Matrix<double,2,2> Ac_plus{{2,9.1},
+						   		{12.5,8}};
+	Matrix<double,2,2> Ac_minus{{23,98},
+						   		{129,23}};
+	QBD<double> process;
+	process.add_zero_level(A0_0, A0_plus);
+	process.add_level(Ac_minus, Ac_0, Ac_plus);
+	process.fix_diagonal();
+	auto tmp = process.get_A_0(0)->rowwise().sum() + process.get_A_plus(0)->rowwise().sum();
+	auto tmp2 =  process.get_A_minus(1)->rowwise().sum() + process.get_A_0(1)->rowwise().sum() + process.get_A_plus(1)->rowwise().sum();
+	double r1 = std::max(tmp.maxCoeff(), tmp2.maxCoeff());
+	double r2 = std::min(tmp.minCoeff(), tmp2.minCoeff());
+	BOOST_CHECK((abs(r1) < 6e-15) && (abs(r2) < 6e-15));
 }

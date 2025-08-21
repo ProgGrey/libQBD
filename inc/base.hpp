@@ -144,6 +144,18 @@ namespace libQBD
                 }
             }
         }
+
+        // Automatically calculate diagonal elements
+        void fix_diagonal(void)
+        {
+            if(!(A_0.empty()) && !(A_plus.empty())){
+                A_0[0].diagonal() -= (A_plus[0].rowwise().sum() + A_0[0].rowwise().sum());
+            }
+            size_t n = std::min(A_0.size(), std::min(A_plus.size(), A_minus.size() + 1));
+            for(size_t k = 1; k < n; k++){
+                A_0[k].diagonal() -= (A_minus[k-1].rowwise().sum() + A_plus[k].rowwise().sum() + A_0[k].rowwise().sum());
+            }
+        }
     };
 }
 
