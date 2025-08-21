@@ -52,13 +52,13 @@ namespace libQBD
             }
 
             public:
-            Q_in_pow<matrix_element_type>()
+            Q_in_pow()
             {
                 process = NULL;
                 power = 0;
             }
             
-            explicit Q_in_pow<matrix_element_type>(const QBD<matrix_element_type> &proc)
+            explicit Q_in_pow(const QBD<matrix_element_type> &proc)
             {
                 process = &proc;
                 power = 1;
@@ -98,7 +98,7 @@ namespace libQBD
                 }
             }
             
-            ~Q_in_pow<matrix_element_type>()
+            ~Q_in_pow()
             {
                 free_memory();
             }
@@ -195,7 +195,7 @@ namespace libQBD
                 return ret;
             }
 
-            Q_in_pow<matrix_element_type>(const Q_in_pow<matrix_element_type> &right)
+            Q_in_pow(const Q_in_pow<matrix_element_type> &right)
             {
                 copy_from(right);
             }
