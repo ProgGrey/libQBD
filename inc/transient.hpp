@@ -319,7 +319,7 @@ namespace libQBD
     }
 
     template<typename matrix_element_type>
-    class TaylorSeriesTransient
+    class TaylorSeriesClassic
     {
         private:
         matrix_element_type h;
@@ -357,7 +357,7 @@ namespace libQBD
         }
 
         public:
-        TaylorSeriesTransient(void)
+        TaylorSeriesClassic(void)
         {
             h = 0;
             is_process_not_binded = true;
@@ -367,7 +367,7 @@ namespace libQBD
         // @param proc is a model description.
         // @param order is a numerical method order, i.e. number of terms of Taylor series.
         // @param step if positive then the step length of the numerical method. if negative, then the constant multiplied by the maximum possible step length.
-        TaylorSeriesTransient(const QBD<matrix_element_type> &proc, uint8_t order, matrix_element_type step = matrix_element_type(-1.0))
+        TaylorSeriesClassic(const QBD<matrix_element_type> &proc, uint8_t order, matrix_element_type step = matrix_element_type(-1.0))
         {
             bind(proc, order, step);
         }
@@ -484,7 +484,7 @@ namespace libQBD
     };
 
     template<>
-    void TaylorSeriesTransient<double>::computate_right_matrix(uint8_t order)
+    void TaylorSeriesClassic<double>::computate_right_matrix(uint8_t order)
     {
         static const double weight[177] = {1.000000000000000000e+00, 5.000000000000000000e-01, 1.666666666666666667e-01, 4.166666666666666667e-02, 8.333333333333333333e-03, 
                 1.388888888888888889e-03, 1.984126984126984127e-04, 2.480158730158730159e-05, 2.755731922398589065e-06, 2.755731922398589065e-07, 2.505210838544171878e-08, 
@@ -530,7 +530,7 @@ namespace libQBD
     }
 
     template<>
-    void TaylorSeriesTransient<float>::computate_right_matrix(uint8_t order)
+    void TaylorSeriesClassic<float>::computate_right_matrix(uint8_t order)
     {
         static const float weight[38] ={1.000000000e+00f, 5.000000000e-01f, 1.666666667e-01f, 4.166666667e-02f, 8.333333333e-03f, 1.388888889e-03f, 1.984126984e-04f, 2.480158730e-05f, 
                 2.755731922e-06f, 2.755731922e-07f, 2.505210839e-08f, 2.087675699e-09f, 1.605904384e-10f, 1.147074560e-11f, 7.647163732e-13f, 4.779477332e-14f, 2.811457254e-15f, 
@@ -549,6 +549,21 @@ namespace libQBD
         }
         B.add_identity_matrix();
     }
+
+    template<typename matrix_element_type>
+    class TaylorSeriesAdaptive
+    {
+        private:
+        internal::Q_in_pow<matrix_element_type> B;
+        
+        public:
+        
+        TaylorSeriesAdaptive(double error, QBD<matrix_element_type> proc)
+        {
+
+        }
+
+    };
 }
 
 #endif

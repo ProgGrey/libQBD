@@ -209,7 +209,7 @@ BOOST_AUTO_TEST_CASE(cluster_model_2_servers)
 			0.6996898617380536977706, 0.6999287699176620636266, 0.7003570212822758378479, 0.700073378862502426756, 0.7003429210507907676231, 0.7003110244072008327976};
 
 	// Taylor series method of 15 order:
-	TaylorSeriesTransient<double> trans;
+	TaylorSeriesClassic<double> trans;
 	trans.bind(process, 15);
 	// Initial condition
 	std::vector<Eigen::VectorX<double>> pi_0;
