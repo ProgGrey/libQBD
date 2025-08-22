@@ -242,6 +242,17 @@ namespace libQBD
                 A_0[k].diagonal() -= (A_minus[k-1].rowwise().sum() + A_plus[k].rowwise().sum() + A_0[k].rowwise().sum());
             }
         }
+
+        //Find minimal element of the matrix
+        matrix_element_type get_min_element(void) const
+        {
+            matrix_element_type res = 0;
+            for(auto it = A_0.begin(); it != A_0.end(); it++){
+                auto tmp = it->diagonal().minCoeff();
+                res = res < tmp ? res : tmp;
+            }
+            return res;
+        }
     };
 }
 
