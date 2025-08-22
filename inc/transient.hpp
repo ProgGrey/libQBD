@@ -10,6 +10,7 @@
 
 #include "base.hpp"
 #include <type_traits>
+#include <algorithm>
 #include <boost/math/special_functions/gamma.hpp>
 #include <boost/math/special_functions.hpp>
 
@@ -17,9 +18,9 @@
 #define LIBQBD_LIM_APPROX_TAYLOR (UINT_MAX>>8)
 
 //Use Taylor's method to calculate intermediate points using a polynomial of no greater than the specified degree.
-#define LIBQBD_APPROX_TAYLOR(x) ((0<<(8*sizeof(unsigned int)-1)) | x)
-//Use cubic Hermit interpolation to calculate intermediate points.
-#define LIBQBD_APPROX_CHS (1 <<(8*sizeof(unsigned int)-1))
+#define LIBQBD_APPROX_TAYLOR(x) ((0<<(8*sizeof(unsigned int)-8)) | x)
+//Use cubic Hermit interpolation to calculate intermediate points. Will be added later.
+//#define LIBQBD_APPROX_CHS (1 <<(8*sizeof(unsigned int)-8))
 // Use Taylor's method to calculate intermediate points. The maximum degree of the polynomial is limited by the next point.
 #define LIBQBD_APPROX_TAYLOR_UNLIM LIBQBD_APPROX_TAYLOR(LIBQBD_LIM_APPROX_TAYLOR)
 
@@ -39,6 +40,17 @@ namespace libQBD
         inline uint8_t get_max_factor()
         {
             constexpr uint8_t res = std::is_same<T,double>::value ? 177 : (std::is_same<T,float>::value ? 38 : 255);
+            return res;
+        }
+
+        static const unsigned int taylor_approx = 0;
+        //Will be added later.
+        //static const unsigned int chs_approx = 1;
+
+        //Return method parameters
+        inline unsigned int unpack_approx_method(unsigned int &method){
+            unsigned int res = method & ~(0xFFU<<(8*sizeof(unsigned int)-8));
+            method>>=(8*sizeof(unsigned int)-8);
             return res;
         }
 
@@ -607,8 +619,13 @@ namespace libQBD
     class TaylorSeriesAdaptive
     {
         private:
+        bool is_binded = false;
+        unsigned int max_saved_data;
+        unsigned int max_degree;
         internal::Q_in_pow<matrix_element_type> B;
         std::vector<std::vector<Eigen::VectorX<matrix_element_type>>> dist_in_ref_points;
+        //[point][n+1-th derivaty norm]
+        std::vector<std::vector<matrix_element_type>> norms_in_ref_points;
         //[point][n+1-th derivaty][level]
         std::vector<std::vector<std::vector<Eigen::VectorX<matrix_element_type>>>> derivs_in_ref_points;
         std::vector<matrix_element_type> ref_points;
@@ -616,45 +633,110 @@ namespace libQBD
         matrix_element_type error;
 
 
-        uint_fast8_t next_point(matrix_element_type delta, uint_fast8_t n, matrix_element_type error){
+        void next_point(uint_fast8_t n){
+            /*The reference points are at the maximum possible distance. Therefore, delta is not used here. Considering that the computation
+             time is proportional to n/delta, this will lead to a small loss of performance, but will simplify further work.*/
             std::vector<Eigen::VectorX<matrix_element_type>> deriv = dist_in_ref_points.back();
             std::vector<Eigen::VectorX<matrix_element_type>> res = deriv;
+            std::vector<matrix_element_type> norms;
+            std::vector<std::vector<Eigen::VectorX<matrix_element_type>>> derivs;
             uint_fast8_t k = 0;
-            matrix_element_type norm;
             matrix_element_type er;
-            matrix_element_type delta_m = delta;
-            matrix_element_type twodelta_inv = matrix_element_type(1.0)/(delta*2);
+            constexpr matrix_element_type twodelta_inv = matrix_element_type(1.0)/matrix_element_type(2.0);
             matrix_element_type twodelta_in_n = twodelta_inv;
             do{
                 deriv = B.mull_by_vector(deriv);
                 // Add next term:
-                internal::vec_fma(res, deriv, delta_m*internal::get_one_div_by_factor<matrix_element_type>(k));
-                delta_m *= delta;
+                internal::vec_fma(res, deriv, internal::get_one_div_by_factor<matrix_element_type>(k));
                 //Error estimation
-                norm = internal::l1norm<matrix_element_type>(deriv);
-                er = norm*boost::math::gamma_p<matrix_element_type,matrix_element_type>(matrix_element_type(k+2), delta*2)*std::exp(2*delta)*twodelta_in_n;
+                matrix_element_type norm = internal::l1norm<matrix_element_type>(deriv);
+                er = norm*boost::math::gamma_p<matrix_element_type,matrix_element_type>(matrix_element_type(k+2), matrix_element_type(2.0))*std::exp(matrix_element_type(2.0))*twodelta_in_n;
+                if(norms.size() < max_saved_data){
+                    norms.push_back(norm);
+                    derivs.push_back(deriv);
+                }
                 //std::cout<< er << '\n';
                 twodelta_in_n *= twodelta_inv;
                 k++;
             }while((er > error) && (k < n));
             dist_in_ref_points.push_back(res);
-            ref_points.push_back(ref_points.back() + delta/min_elem);
-            return 255;
+            ref_points.push_back(ref_points.back() + matrix_element_type(1.0)/min_elem);
+            norms_in_ref_points.push_back(norms);
+            derivs_in_ref_points.push_back(derivs);
+        }
+
+        void calc_intermed_points(std::vector<std::vector<Eigen::VectorX<matrix_element_type>>> &dist, std::vector<matrix_element_type> *errors, const std::vector<matrix_element_type> deltas, size_t num){
+            for(matrix_element_type d : deltas){
+                if(d <= std::numeric_limits<matrix_element_type>::epsilon()){
+                    dist.push_back(dist_in_ref_points[num]);
+                    if(errors != nullptr){
+                        errors->push_back(matrix_element_type(0.0));
+                    }
+                    continue;
+                }
+                std::vector<Eigen::VectorX<matrix_element_type>> res = dist_in_ref_points[num];
+                std::vector<Eigen::VectorX<matrix_element_type>> *deriv;
+                std::vector<Eigen::VectorX<matrix_element_type>> deriv_comp;
+                uint_fast8_t k = 0;
+                matrix_element_type er;
+                matrix_element_type delta_m = d;
+                matrix_element_type norm;
+                matrix_element_type delta_inv = matrix_element_type(0.5)/d;
+                matrix_element_type delta_minus_n = delta_inv;
+                do{
+                    //Use or calculate derivative
+                    if(k < norms_in_ref_points[num].size()){
+                        deriv = &(derivs_in_ref_points[num][k]);
+                        norm = norms_in_ref_points[num][k];
+                    } else {
+                        if(deriv_comp.size() == 0){
+                            if(derivs_in_ref_points[num].size() != 0){
+                                deriv_comp = derivs_in_ref_points[num].back();
+                            } else{
+                                deriv_comp = dist_in_ref_points[num];
+                            }
+                        }
+                        deriv_comp = B.mull_by_vector(deriv_comp);
+                        norm = internal::l1norm<matrix_element_type>(deriv_comp);
+                        deriv = &deriv_comp;
+                    }
+                    // Add next term
+                    internal::vec_fma(res, *deriv, delta_m*internal::get_one_div_by_factor<matrix_element_type>(k));
+                    delta_m *= d;
+                    //Error estimation
+                    er = norm*boost::math::gamma_p<matrix_element_type,matrix_element_type>(matrix_element_type(k+2), d*2.0)*std::exp(d*2.0)*delta_minus_n;
+                    delta_minus_n *= delta_inv;
+                    k++;
+                }while((k < max_degree) && (er > error));
+                //std::cout << (int)k << ' ';
+                dist.push_back(res);
+                if(errors != nullptr){
+                    errors->push_back(er);
+                }
+            }
         }
 
         public:
         
-        TaylorSeriesAdaptive(const QBD<matrix_element_type> &proc, const std::vector<Eigen::VectorX<matrix_element_type>> &pi_0, double error, matrix_element_type max_time,
+        TaylorSeriesAdaptive(const QBD<matrix_element_type> &proc, const std::vector<Eigen::VectorX<matrix_element_type>> &pi0, double error, matrix_element_type max_time,
+                             unsigned int approx_type = LIBQBD_APPROX_TAYLOR_UNLIM, unsigned int strategy = LIBQBD_STRATEGY_FAST)
+        {
+            bind(proc, pi0, error, max_time, approx_type, strategy);
+        }
+
+        void bind(const QBD<matrix_element_type> &proc, const std::vector<Eigen::VectorX<matrix_element_type>> &pi0, double error, matrix_element_type max_time,
                              unsigned int approx_type = LIBQBD_APPROX_TAYLOR_UNLIM, unsigned int strategy = LIBQBD_STRATEGY_FAST)
         {
             min_elem = -proc.get_min_element();
             B = internal::Q_in_pow<matrix_element_type>(proc);
             B.mull_by_const(matrix_element_type(1.0)/min_elem);
-            dist_in_ref_points.push_back(pi_0);
+            dist_in_ref_points.push_back(pi0);
             ref_points.push_back(matrix_element_type(0.0));
             this->error = error;
+            max_degree = internal::unpack_approx_method(approx_type);
+            max_saved_data = std::min(max_degree, strategy);
             while(ref_points.back() < max_time){
-                next_point(1, 255, error);
+                next_point(internal::get_max_factor<matrix_element_type>());
             }
         }
 
@@ -668,6 +750,43 @@ namespace libQBD
             return dist_in_ref_points;
         }
         
+        void get_dist(std::vector<std::vector<Eigen::VectorX<matrix_element_type>>> &dist, const std::vector<matrix_element_type> &times, std::vector<matrix_element_type> *errors =nullptr)
+        {
+            while(ref_points.back() < times.back()){
+                next_point(internal::get_max_factor<matrix_element_type>());
+            }
+            auto it = std::lower_bound(ref_points.begin(), ref_points.end(), times[0]);
+            size_t num = static_cast<size_t>(std::distance(ref_points.begin(), it));
+            if(times[0] < ref_points[num]){
+                num--;
+            }
+            std::vector<matrix_element_type> norm_times;
+            for(matrix_element_type t : times){
+                matrix_element_type reg = (t-ref_points[num])*min_elem;
+                if(reg > matrix_element_type(1.0)){
+                    calc_intermed_points(dist, errors, norm_times, num);
+                    norm_times.clear();
+                    it = std::lower_bound(ref_points.begin() + static_cast<typename std::vector<matrix_element_type>::difference_type>(num), ref_points.end(), t);
+                    num = static_cast<size_t>(std::distance(ref_points.begin(), it));
+                    if(t < ref_points[num]){
+                        num--;
+                    }
+                    reg = (t-ref_points[num])*min_elem;
+                }
+                norm_times.push_back(reg);
+            }
+            if(norm_times.size() > 0){
+                calc_intermed_points(dist, errors, norm_times, num);
+            }
+        }
+
+        std::vector<std::vector<Eigen::VectorX<matrix_element_type>>> get_dist(const std::vector<matrix_element_type> &times, std::vector<matrix_element_type> *errors =nullptr)
+        {
+            std::vector<std::vector<Eigen::VectorX<matrix_element_type>>> res;
+            get_dist(res, times, errors);
+            return res;
+        }
+
     };
 }
 
