@@ -30,7 +30,7 @@
 // Store all information. Fast calculations, but huge memory consumption.
 #define LIBQBD_STRATEGY_FAST LIBQBD_STRATEGY_MAXDATA(UINT_MAX)
 // Store only the minimum necessary information. Saves memory, but increases computation time. 
-#define LIBQBD_STRATEGY_ECO LIBQBD_STRATEGY_MAXDATA(0)
+#define LIBQBD_STRATEGY_LOWRAM LIBQBD_STRATEGY_MAXDATA(0)
 
 namespace libQBD
 {
@@ -200,36 +200,36 @@ namespace libQBD
             {
                 process = &proc;
                 power = 1;
-                if((proc.A_0.size()) > 0 && (proc.A_plus.size() > 0) && (proc.A_minus.size() > 0)){
+                if((proc.all_A_0().size()) > 0 && (proc.all_A_plus().size() > 0) && (proc.all_A_minus().size() > 0)){
                     std::vector<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>*> tmp;
                     Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* m;
-                    m = new Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>(proc.A_0[0]);
+                    m = new Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>(proc.all_A_0()[0]);
                     tmp.push_back(m);
-                    m = new Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>(proc.A_plus[0]);
+                    m = new Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>(proc.all_A_plus()[0]);
                     tmp.push_back(m);
                     matrices.push_back(tmp);
                     std::size_t im = 0;
                     std::size_t i0 = 1;
                     std::size_t ip = 1;
-                    for(std::size_t k = 1; k < std::max(std::max(proc.A_minus.size() + 1, proc.A_0.size()), proc.A_plus.size()); k++){
+                    for(std::size_t k = 1; k < std::max(std::max(proc.all_A_minus().size() + 1, proc.all_A_0().size()), proc.all_A_plus().size()); k++){
                         std::vector<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>*> tmp2;
-                        m = new Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>(proc.A_minus[im]);
+                        m = new Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>(proc.all_A_minus()[im]);
                         tmp2.push_back(m);
-                        m = new Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>(proc.A_0[i0]);
+                        m = new Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>(proc.all_A_0()[i0]);
                         tmp2.push_back(m);
-                        m = new Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>(proc.A_plus[ip]);
+                        m = new Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>(proc.all_A_plus()[ip]);
                         tmp2.push_back(m);
                         matrices.push_back(tmp2);
                         im++;
                         i0++;
                         ip++;
-                        if(im == proc.A_minus.size()){
+                        if(im == proc.all_A_minus().size()){
                             im--;
                         }
-                        if(i0 == proc.A_0.size()){
+                        if(i0 == proc.all_A_0().size()){
                             i0--;
                         }
-                        if(ip == proc.A_plus.size()){
+                        if(ip == proc.all_A_plus().size()){
                             ip--;
                         }
                     }

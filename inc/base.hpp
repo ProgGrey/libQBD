@@ -37,12 +37,31 @@ namespace libQBD
     template<typename matrix_element_type>
     class  QBD
     {
-    public:
+    private:
         // Matrices, that describes generator matrix of QBD process
         std::vector<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>> A_plus;
         std::vector<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>> A_0;
         std::vector<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>> A_minus;
+    public:
 
+        //Return reference to A(+) matrices
+        const std::vector<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>> & all_A_plus(void) const
+        {
+            return A_plus;
+        }
+
+        //Return reference to A(0) matrices
+        const std::vector<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>> & all_A_0(void) const
+        {
+            return A_0;
+        }
+
+        //Return reference to A(-) matrices
+        const std::vector<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>> & all_A_minus(void) const
+        {
+            return A_minus;
+        }
+        
         //Returns a pointer to the corresponding A(-) matrix
         // @param level is a level of model.
         const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* get_A_minus(std::size_t level) const{
