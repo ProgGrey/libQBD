@@ -280,6 +280,33 @@ namespace libQBD
             }
             return res;
         }
+
+        // Multiplies a vector by a matrix.
+        // @param vec is a vector.
+        std::vector<Eigen::VectorX<matrix_element_type>> mull_by_row_vector(const std::vector<Eigen::VectorX<matrix_element_type>> &vec) const
+        {
+            std::vector<Eigen::VectorX<matrix_element_type>> res;
+            res.reserve(vec.size() + 1);
+            if(vec.size() >= 3){
+                res[0] = vec[0]*get_A_0(0) + vec[1]*get_A_minus(1);
+                size_t k = 2;
+                for(; k < vec.size(); k++){
+                    res[k-1] = vec[k-2]*get_A_plus(k-2) + vec[k-1]*get_A_0(k-1) + vec[k]*get_A_minus(k);
+                }
+                res[k-1] = vec[k-2]*get_A_plus(k-2) + vec[k-1]*get_A_0(k-1);
+                res[k] = vec[k-1]*get_A_plus(k-1);
+            }else if(vec.size() == 2){
+                res[0] = vec[0]*get_A_0(0) + vec[1]*get_A_minus(1);
+                res[1] = vec[0]*get_A_plus(0) + vec[1]*get_A_0(1);
+                res[2] = vec[1]*get_A_plus(0);
+            }else if(vec.size() == 1){
+                res[0] = vec[0]*get_A_0(0);
+                res[1] = vec[0]*get_A_plus(0);
+            }else{
+                throw libQBD_exception("An empty vector was passed.");
+            }
+            return res;
+        }
     };
 }
 
