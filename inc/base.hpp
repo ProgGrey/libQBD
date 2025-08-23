@@ -16,6 +16,7 @@
 #endif
 #include <vector>
 #include <exception>
+#include <memory>
 
 namespace libQBD
 {
@@ -72,7 +73,7 @@ namespace libQBD
         
         //Returns a pointer to the corresponding A(-) matrix
         // @param level is a level of model.
-        const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* get_A_minus(std::size_t level) const{
+        const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> & get_A_minus(std::size_t level) const{
             if(level == 0){
                 throw libQBD_exception("Matrix A_minus for zero level is undefined.");
             }
@@ -81,35 +82,35 @@ namespace libQBD
             }
             level--;
             if(level >= proc->A_minus.size()){
-                return &(proc->A_minus.back());
+                return proc->A_minus.back();
             } else{
-                return &(proc->A_minus[level]);
+                return proc->A_minus[level];
             }
         }
 
         //Returns a pointer to the corresponding A(0) matrix
         // @param level is a level of model.
-        const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* get_A_0(std::size_t level) const{
+        const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> & get_A_0(std::size_t level) const{
             if(proc->A_0.empty()){
                 throw libQBD_exception("No levels specified.");
             }
             if(level >= proc->A_0.size()){
-                return &(proc->A_0.back());
+                return proc->A_0.back();
             } else{
-                return &(proc->A_0[level]);
+                return proc->A_0[level];
             }
         }
         
         //Returns a pointer to the corresponding A(+) matrix
         // @param level is a level of model.
-        const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* get_A_plus(std::size_t level) const{
+        const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> & get_A_plus(std::size_t level) const{
             if(proc->A_plus.empty()){
                 throw libQBD_exception("No levels specified.");
             }
             if(level >= proc->A_plus.size()){
-                return &(proc->A_plus.back());
+                return proc->A_plus.back();
             } else{
-                return &(proc->A_plus[level]);
+                return proc->A_plus[level];
             }
         }
         
@@ -281,30 +282,31 @@ namespace libQBD
             return res;
         }
 
-        // Multiplies a vector by a matrix.
+        // Multiplies a vector by a matrix multiplied by const, i.e. vec*Q*cons.
         // @param vec is a vector.
-        std::vector<Eigen::VectorX<matrix_element_type>> mull_by_row_vector(const std::vector<Eigen::VectorX<matrix_element_type>> &vec) const
+        // @param cons is a constant.
+        std::vector<Eigen::VectorX<matrix_element_type>> mull_by_row_vector(const std::vector<Eigen::VectorX<matrix_element_type>> &vec, matrix_element_type cons = matrix_element_type(1.0)) const
         {
             std::vector<Eigen::VectorX<matrix_element_type>> res;
-            res.reserve(vec.size() + 1);
             if(vec.size() >= 3){
-                res[0] = vec[0]*get_A_0(0) + vec[1]*get_A_minus(1);
+                res.push_back((vec[0]*get_A_0(0) + vec[1]*get_A_minus(1))*cons);
                 size_t k = 2;
                 for(; k < vec.size(); k++){
-                    res[k-1] = vec[k-2]*get_A_plus(k-2) + vec[k-1]*get_A_0(k-1) + vec[k]*get_A_minus(k);
+                    res.push_back((vec[k-2]*get_A_plus(k-2) + vec[k-1]*get_A_0(k-1) + vec[k]*get_A_minus(k))*cons);
                 }
-                res[k-1] = vec[k-2]*get_A_plus(k-2) + vec[k-1]*get_A_0(k-1);
-                res[k] = vec[k-1]*get_A_plus(k-1);
+                res.push_back((vec[k-2]*get_A_plus(k-2) + vec[k-1]*get_A_0(k-1))*cons);
+                res.push_back((vec[k-1]*get_A_plus(k-1))*cons);
             }else if(vec.size() == 2){
-                res[0] = vec[0]*get_A_0(0) + vec[1]*get_A_minus(1);
-                res[1] = vec[0]*get_A_plus(0) + vec[1]*get_A_0(1);
-                res[2] = vec[1]*get_A_plus(0);
+                res.push_back((vec[0]*get_A_0(0) + vec[1]*get_A_minus(1))*cons);
+                res.push_back((vec[0]*get_A_plus(0) + vec[1]*get_A_0(1))*cons);
+                res.push_back((vec[1]*get_A_plus(0))*cons);
             }else if(vec.size() == 1){
-                res[0] = vec[0]*get_A_0(0);
-                res[1] = vec[0]*get_A_plus(0);
+                res.push_back((vec[0]*get_A_0(0))*cons);
+                res.push_back((vec[0]*get_A_plus(0))*cons);
             }else{
                 throw libQBD_exception("An empty vector was passed.");
             }
+            
             return res;
         }
     };
