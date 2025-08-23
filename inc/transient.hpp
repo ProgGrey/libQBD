@@ -258,7 +258,7 @@ namespace libQBD
                         true_k = this->matrices.size() - 1;
                     }
                     m = new Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>();
-                    *m = (*matrices[true_k][0]) * (*(this->process.get_A_minus(k - power))) * step;
+                    *m = (*matrices[true_k][0]) * this->process.get_A_minus(k - power) * step;
                     ret.matrices[k].push_back(m);
                 }
                 //central diagonals:
@@ -288,12 +288,12 @@ namespace libQBD
                         right = std::min(j+1, matrices[true_k].size() - 1);
                         // Non zero elements of right matrix:
                         if(col == 0){
-                            A[0] = this->process.get_A_0(0);
-                            A[1] = this->process.get_A_minus(1);
+                            A[0] = &(this->process.get_A_0(0));
+                            A[1] = &(this->process.get_A_minus(1));
                         }else{
-                            A[0] = this->process.get_A_plus(col-1);
-                            A[1] = this->process.get_A_0(col);
-                            A[2] = this->process.get_A_minus(col+1);
+                            A[0] = &(this->process.get_A_plus(col-1));
+                            A[1] = &(this->process.get_A_0(col));
+                            A[2] = &(this->process.get_A_minus(col+1));
                         }
                         // Numbers of zeroes in col in left matrix and in row k in right matrix
                         std::size_t zUp, zLeft;
@@ -326,7 +326,7 @@ namespace libQBD
                         true_k = this->matrices.size() - 1;
                     }
                     m = new Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>();
-                    *m = (*matrices[true_k].back()) * (*(this->process.get_A_plus(k + power))) * step;
+                    *m = (*matrices[true_k].back()) * this->process.get_A_plus(k + power) * step;
                     ret.matrices[k].push_back(m);
                 }
                 return ret;
@@ -621,7 +621,7 @@ namespace libQBD
         bool is_binded = false;
         unsigned int max_saved_data;
         unsigned int max_degree;
-        internal::Q_in_pow<matrix_element_type> B;
+        QBD<matrix_element_type> proc;
         std::vector<std::vector<Eigen::VectorX<matrix_element_type>>> dist_in_ref_points;
         //[point][n+1-th derivaty norm]
         std::vector<std::vector<matrix_element_type>> norms_in_ref_points;
@@ -643,8 +643,10 @@ namespace libQBD
             matrix_element_type er;
             constexpr matrix_element_type twodelta_inv = matrix_element_type(1.0)/matrix_element_type(2.0);
             matrix_element_type twodelta_in_n = twodelta_inv;
+            matrix_element_type min_elem_inv = matrix_element_type(1.0)/min_elem;
             do{
-                deriv = B.mull_by_vector(deriv);
+                //deriv = B.mull_by_vector(deriv);
+                deriv = proc.mull_by_row_vector(deriv, min_elem_inv);
                 // Add next term:
                 internal::vec_fma(res, deriv, internal::get_one_div_by_factor<matrix_element_type>(k));
                 //Error estimation
@@ -682,8 +684,9 @@ namespace libQBD
                 matrix_element_type norm;
                 matrix_element_type delta_inv = matrix_element_type(0.5)/d;
                 matrix_element_type delta_minus_n = delta_inv;
+                matrix_element_type min_elem_inv = matrix_element_type(1.0)/min_elem;
                 do{
-                    //Use or calculate derivative
+                    //Reuse or calculate derivative
                     if(k < norms_in_ref_points[num].size()){
                         deriv = &(derivs_in_ref_points[num][k]);
                         norm = norms_in_ref_points[num][k];
@@ -695,7 +698,8 @@ namespace libQBD
                                 deriv_comp = dist_in_ref_points[num];
                             }
                         }
-                        deriv_comp = B.mull_by_vector(deriv_comp);
+                        //deriv_comp = B.mull_by_vector(deriv_comp);
+                        deriv_comp = proc.mull_by_row_vector(deriv_comp, min_elem_inv);
                         norm = internal::l1norm<matrix_element_type>(deriv_comp);
                         deriv = &deriv_comp;
                     }
@@ -727,8 +731,7 @@ namespace libQBD
                              unsigned int approx_type = LIBQBD_APPROX_TAYLOR_UNLIM, unsigned int strategy = LIBQBD_STRATEGY_FAST)
         {
             min_elem = -proc.get_min_element();
-            B = internal::Q_in_pow<matrix_element_type>(proc);
-            B.mull_by_const(matrix_element_type(1.0)/min_elem);
+            this->proc = proc;
             dist_in_ref_points.push_back(pi0);
             ref_points.push_back(matrix_element_type(0.0));
             this->error = error;
