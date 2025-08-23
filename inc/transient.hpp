@@ -159,7 +159,7 @@ namespace libQBD
             private:
             std::vector<std::vector<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>*>> matrices;
             uint8_t power;
-            const QBD<matrix_element_type> *process;
+            QBD<matrix_element_type> process;
 
             void free_memory(void)
             {
@@ -192,13 +192,12 @@ namespace libQBD
             public:
             Q_in_pow()
             {
-                process = NULL;
                 power = 0;
             }
             
             explicit Q_in_pow(const QBD<matrix_element_type> &proc)
             {
-                process = &proc;
+                process = proc;
                 power = 1;
                 if((proc.all_A_0().size()) > 0 && (proc.all_A_plus().size() > 0) && (proc.all_A_minus().size() > 0)){
                     std::vector<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>*> tmp;
@@ -259,7 +258,7 @@ namespace libQBD
                         true_k = this->matrices.size() - 1;
                     }
                     m = new Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>();
-                    *m = (*matrices[true_k][0]) * (*(this->process->get_A_minus(k - power))) * step;
+                    *m = (*matrices[true_k][0]) * (*(this->process.get_A_minus(k - power))) * step;
                     ret.matrices[k].push_back(m);
                 }
                 //central diagonals:
@@ -289,12 +288,12 @@ namespace libQBD
                         right = std::min(j+1, matrices[true_k].size() - 1);
                         // Non zero elements of right matrix:
                         if(col == 0){
-                            A[0] = this->process->get_A_0(0);
-                            A[1] = this->process->get_A_minus(1);
+                            A[0] = this->process.get_A_0(0);
+                            A[1] = this->process.get_A_minus(1);
                         }else{
-                            A[0] = this->process->get_A_plus(col-1);
-                            A[1] = this->process->get_A_0(col);
-                            A[2] = this->process->get_A_minus(col+1);
+                            A[0] = this->process.get_A_plus(col-1);
+                            A[1] = this->process.get_A_0(col);
+                            A[2] = this->process.get_A_minus(col+1);
                         }
                         // Numbers of zeroes in col in left matrix and in row k in right matrix
                         std::size_t zUp, zLeft;
@@ -327,7 +326,7 @@ namespace libQBD
                         true_k = this->matrices.size() - 1;
                     }
                     m = new Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>();
-                    *m = (*matrices[true_k].back()) * (*(this->process->get_A_plus(k + power))) * step;
+                    *m = (*matrices[true_k].back()) * (*(this->process.get_A_plus(k + power))) * step;
                     ret.matrices[k].push_back(m);
                 }
                 return ret;

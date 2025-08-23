@@ -34,32 +34,40 @@ namespace libQBD
         }
     };
 
+    namespace internal{
+        template<typename matrix_element_type>
+        class  QBDData{
+            public:
+            // Matrices, that describes generator matrix of QBD process
+            std::vector<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>> A_plus;
+            std::vector<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>> A_0;
+            std::vector<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>> A_minus;
+        };  
+    }
+
     template<typename matrix_element_type>
     class  QBD
     {
     private:
-        // Matrices, that describes generator matrix of QBD process
-        std::vector<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>> A_plus;
-        std::vector<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>> A_0;
-        std::vector<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>> A_minus;
+        std::shared_ptr<internal::QBDData<matrix_element_type>> proc = std::make_shared<internal::QBDData<matrix_element_type>>();
     public:
 
         //Return reference to A(+) matrices
         const std::vector<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>> & all_A_plus(void) const
         {
-            return A_plus;
+            return proc->A_plus;
         }
 
         //Return reference to A(0) matrices
         const std::vector<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>> & all_A_0(void) const
         {
-            return A_0;
+            return proc->A_0;
         }
 
         //Return reference to A(-) matrices
         const std::vector<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>> & all_A_minus(void) const
         {
-            return A_minus;
+            return proc->A_minus;
         }
         
         //Returns a pointer to the corresponding A(-) matrix
@@ -68,40 +76,40 @@ namespace libQBD
             if(level == 0){
                 throw libQBD_exception("Matrix A_minus for zero level is undefined.");
             }
-            if(A_minus.empty()){
+            if(proc->A_minus.empty()){
                 throw libQBD_exception("No levels specified.");
             }
             level--;
-            if(level >= A_minus.size()){
-                return &(A_minus.back());
+            if(level >= proc->A_minus.size()){
+                return &(proc->A_minus.back());
             } else{
-                return &(A_minus[level]);
+                return &(proc->A_minus[level]);
             }
         }
 
         //Returns a pointer to the corresponding A(0) matrix
         // @param level is a level of model.
         const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* get_A_0(std::size_t level) const{
-            if(A_0.empty()){
+            if(proc->A_0.empty()){
                 throw libQBD_exception("No levels specified.");
             }
-            if(level >= A_0.size()){
-                return &(A_0.back());
+            if(level >= proc->A_0.size()){
+                return &(proc->A_0.back());
             } else{
-                return &(A_0[level]);
+                return &(proc->A_0[level]);
             }
         }
         
         //Returns a pointer to the corresponding A(+) matrix
         // @param level is a level of model.
         const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* get_A_plus(std::size_t level) const{
-            if(A_plus.empty()){
+            if(proc->A_plus.empty()){
                 throw libQBD_exception("No levels specified.");
             }
-            if(level >= A_plus.size()){
-                return &(A_plus.back());
+            if(level >= proc->A_plus.size()){
+                return &(proc->A_plus.back());
             } else{
-                return &(A_plus[level]);
+                return &(proc->A_plus[level]);
             }
         }
         
@@ -112,15 +120,15 @@ namespace libQBD
             const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> &A_0,
             const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> &A_plus)
         {
-            if(this->A_0.empty() && this->A_plus.empty()){
+            if(proc->A_0.empty() && proc->A_plus.empty()){
                 if(A_0.rows() != A_plus.rows()){
                     throw libQBD_exception("Different number of rows in matrices of the same level.");
                 }
                 if(A_0.rows() != A_0.cols()){
                     throw libQBD_exception("Matrix A(0) is not square.");
                 }
-                this->A_0.push_back(A_0);
-                this->A_plus.push_back(A_plus);
+                proc->A_0.push_back(A_0);
+                proc->A_plus.push_back(A_plus);
             }else{
                 throw libQBD_exception("Level zero already exists.");
             }
@@ -131,9 +139,9 @@ namespace libQBD
         void add_zero_level(
             const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> &A_plus)
         {
-            if(this->A_0.empty() && this->A_plus.empty()){
-                this->A_plus.push_back(A_plus);
-                this->A_0.push_back((-A_plus.rowwise().sum()).asDiagonal());
+            if(proc->A_0.empty() && proc->A_plus.empty()){
+                proc->A_plus.push_back(A_plus);
+                proc->A_0.push_back((-A_plus.rowwise().sum()).asDiagonal());
             }else{
                 throw libQBD_exception("Level zero already exists.");
             }
@@ -148,24 +156,24 @@ namespace libQBD
             const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> &A_0,
             const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> &A_plus)
         {
-            if((this->A_0.size() !=  this->A_plus.size()) || (this->A_plus.size() != (this->A_minus.size()+1))){
+            if((proc->A_0.size() !=  proc->A_plus.size()) || (proc->A_plus.size() != (proc->A_minus.size()+1))){
                 throw libQBD_exception("Unfilled levels found.");
             }
             if((A_minus.rows() != A_0.rows()) || (A_minus.rows() != A_plus.rows())){
                 throw libQBD_exception("Different number of rows in matrices of the same level.");
             }
-            if(A_minus.cols() != this->A_0.back().cols()){
+            if(A_minus.cols() != proc->A_0.back().cols()){
                 throw libQBD_exception("The number of columns of the matrix A(-) is not equal to the number of columns of the matrix A(0) of the previous level.");
             }
-            if(A_0.cols() != this->A_plus.back().cols()){
+            if(A_0.cols() != proc->A_plus.back().cols()){
                 throw libQBD_exception("The number of columns of the matrix A(0) is not equal to the number of columns of the matrix A(+) of the previous level.");
             }
             if(A_0.rows() != A_0.cols()){
                 throw libQBD_exception("Matrix A(0) is not square.");
             }
-            this->A_minus.push_back(A_minus);
-            this->A_0.push_back(A_0);
-            this->A_plus.push_back(A_plus);
+            proc->A_minus.push_back(A_minus);
+            proc->A_0.push_back(A_0);
+            proc->A_plus.push_back(A_plus);
         }
 
         // Adds the next level to the model. This method automatically derives A(0) from A(-) and A(+).
@@ -175,18 +183,18 @@ namespace libQBD
             const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> &A_minus,
             const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> &A_plus)
         {
-            if((this->A_0.size() !=  this->A_plus.size()) || (this->A_plus.size() != (this->A_minus.size()+1))){
+            if((proc->A_0.size() !=  proc->A_plus.size()) || (proc->A_plus.size() != (proc->A_minus.size()+1))){
                 throw libQBD_exception("Unfilled levels found.");
             }
             if(A_minus.rows() != A_plus.rows()){
                 throw libQBD_exception("Different number of rows in matrices of the same level.");
             }
-            if(A_minus.cols() != this->A_0.back().cols()){
+            if(A_minus.cols() != proc->A_0.back().cols()){
                 throw libQBD_exception("The number of columns of the matrix A(-) is not equal to the number of columns of the matrix A(0) of the previous level.");
             }
-            this->A_minus.push_back(A_minus);
-            this->A_0.push_back((-(A_minus.rowwise().sum() + A_plus.rowwise().sum())).asDiagonal());
-            this->A_plus.push_back(A_plus);
+            proc->A_minus.push_back(A_minus);
+            proc->A_0.push_back((-(A_minus.rowwise().sum() + A_plus.rowwise().sum())).asDiagonal());
+            proc->A_plus.push_back(A_plus);
         }
 
         // Adds a final repeating level to the model.
@@ -197,16 +205,16 @@ namespace libQBD
             const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> &A_0
         )
         {
-            if((this->A_0.size() !=  this->A_plus.size()) || (this->A_plus.size() != (this->A_minus.size()+1))){
+            if((proc->A_0.size() !=  proc->A_plus.size()) || (proc->A_plus.size() != (proc->A_minus.size()+1))){
                 throw libQBD_exception("Unfilled levels found.");
             }
-            if((A_minus.rows() != A_0.rows()) || (A_minus.rows() != this->A_plus.back().rows())){
+            if((A_minus.rows() != A_0.rows()) || (A_minus.rows() != proc->A_plus.back().rows())){
                 throw libQBD_exception("Different number of rows in matrices of the same level.");
             }
-            if(A_minus.cols() != this->A_0.back().cols()){
+            if(A_minus.cols() != proc->A_0.back().cols()){
                 throw libQBD_exception("The number of columns of the matrix A(-) is not equal to the number of columns of the matrix A(0) of the previous level.");
             }
-            if(A_0.cols() != this->A_plus.back().cols()){
+            if(A_0.cols() != proc->A_plus.back().cols()){
                 throw libQBD_exception("The number of columns of the matrix A(0) is not equal to the number of columns of the matrix A(+) of the previous level.");
             }
             if(A_minus.rows() != A_minus.cols()){
@@ -215,12 +223,12 @@ namespace libQBD
             if(A_0.rows() != A_0.cols()){
                 throw libQBD_exception("Matrix A(0) is not square.");
             }
-            if(this->A_plus.back().rows() != this->A_plus.back().cols()){
+            if(proc->A_plus.back().rows() != proc->A_plus.back().cols()){
                  throw libQBD_exception("Matrix A(+) is not square.");
             }
-            this->A_minus.push_back(A_minus);
-            this->A_0.push_back(A_0);
-            this->A_plus.push_back(this->A_plus.back());
+            proc->A_minus.push_back(A_minus);
+            proc->A_0.push_back(A_0);
+            proc->A_plus.push_back(proc->A_plus.back());
         }
 
         
@@ -230,35 +238,35 @@ namespace libQBD
             const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> &A_minus
         )
         {
-            if((this->A_0.size() !=  this->A_plus.size()) || (this->A_plus.size() != (this->A_minus.size()+1))){
+            if((proc->A_0.size() !=  proc->A_plus.size()) || (proc->A_plus.size() != (proc->A_minus.size()+1))){
                 throw libQBD_exception("Unfilled levels found.");
             }
-            if(A_minus.rows() != this->A_plus.back().rows()){
+            if(A_minus.rows() != proc->A_plus.back().rows()){
                 throw libQBD_exception("Different number of rows in matrices of the same level.");
             }
-            if(A_minus.cols() != this->A_0.back().cols()){
+            if(A_minus.cols() != proc->A_0.back().cols()){
                 throw libQBD_exception("The number of columns of the matrix A(-) is not equal to the number of columns of the matrix A(0) of the previous level.");
             }
             if(A_minus.rows() != A_minus.cols()){
                  throw libQBD_exception("Matrix A(-) is not square.");
             }
-            if(this->A_plus.back().rows() != this->A_plus.back().cols()){
+            if(proc->A_plus.back().rows() != proc->A_plus.back().cols()){
                  throw libQBD_exception("Matrix A(+) is not square.");
             }
-            this->A_minus.push_back(A_minus);
-            this->A_0.push_back((-(A_minus.rowwise().sum() + this->A_plus.back().rowwise().sum())).asDiagonal());
-            this->A_plus.push_back(this->A_plus.back());
+            proc->A_minus.push_back(A_minus);
+            proc->A_0.push_back((-(A_minus.rowwise().sum() + proc->A_plus.back().rowwise().sum())).asDiagonal());
+            proc->A_plus.push_back(proc->A_plus.back());
         }
 
         // Automatically recalculate diagonal elements
         void fix_diagonal(void)
         {
-            if(!(A_0.empty()) && !(A_plus.empty())){
-                A_0[0].diagonal() -= (A_plus[0].rowwise().sum() + A_0[0].rowwise().sum());
+            if(!(proc->A_0.empty()) && !(proc->A_plus.empty())){
+                proc->A_0[0].diagonal() -= (proc->A_plus[0].rowwise().sum() + proc->A_0[0].rowwise().sum());
             }
-            size_t n = std::min(A_0.size(), std::min(A_plus.size(), A_minus.size() + 1));
+            size_t n = std::min(proc->A_0.size(), std::min(proc->A_plus.size(), proc->A_minus.size() + 1));
             for(size_t k = 1; k < n; k++){
-                A_0[k].diagonal() -= (A_minus[k-1].rowwise().sum() + A_plus[k].rowwise().sum() + A_0[k].rowwise().sum());
+                proc->A_0[k].diagonal() -= (proc->A_minus[k-1].rowwise().sum() + proc->A_plus[k].rowwise().sum() + proc->A_0[k].rowwise().sum());
             }
         }
 
@@ -266,7 +274,7 @@ namespace libQBD
         matrix_element_type get_min_element(void) const
         {
             matrix_element_type res = 0;
-            for(auto it = A_0.begin(); it != A_0.end(); it++){
+            for(auto it = proc->A_0.begin(); it != proc->A_0.end(); it++){
                 auto tmp = it->diagonal().minCoeff();
                 res = res < tmp ? res : tmp;
             }

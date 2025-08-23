@@ -22,7 +22,7 @@ namespace libQBD
     class  StationaryDistribution
     {
     protected:
-        QBD<matrix_element_type> *process = nullptr;
+        QBD<matrix_element_type> process;
         
         matrix_element_type rho;
         bool is_rho_computated = false;
@@ -50,15 +50,15 @@ namespace libQBD
         {
             if(!is_rho_computated){
                 // Neuts criteria
-                Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> A = process->all_A_minus().back();
-                A += process->all_A_0().back();
-                A += process->all_A_plus().back();
+                Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> A = process.all_A_minus().back();
+                A += process.all_A_0().back();
+                A += process.all_A_plus().back();
                 Eigen::Matrix<matrix_element_type, Eigen::Dynamic, 1> norm_eq = A.Constant(A.rows(), 1, 1.0);
                 A.col(0) = norm_eq;
                 Eigen::Matrix<matrix_element_type, Eigen::Dynamic, 1> r = A.Constant(A.rows(), 1, 0.0);;
                 r(0,0) = 1.0;
                 Eigen::Matrix<matrix_element_type, 1, Eigen::Dynamic> alpha = A.transpose().colPivHouseholderQr().solve(r).transpose();
-                this->rho = (alpha * process->all_A_plus().back()).sum() / (alpha * process->all_A_minus().back()).sum();
+                this->rho = (alpha * process.all_A_plus().back()).sum() / (alpha * process.all_A_minus().back()).sum();
                 is_rho_computated = true;
             }
         }
@@ -69,8 +69,8 @@ namespace libQBD
                 // R is calculated through its relationship with G.
                 // See Bini D., Latouche G., Meini B. Numerical methods for structured Markov chains pp. 126-128. 
                 computate_G();
-                const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* A_0 = &(process->all_A_0().back());
-                const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* A_p = &(process->all_A_plus().back());
+                const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* A_0 = &(process.all_A_0().back());
+                const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* A_p = &(process.all_A_plus().back());
                 Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> U = -((*A_0) + (*A_p) * G);
                 R = (*A_p) * U.colPivHouseholderQr().inverse();
                 is_R_computated = true;
@@ -86,9 +86,9 @@ namespace libQBD
                 }
                 // Logarithmic reduction algorithm. 
                 // See Bini D., Latouche G., Meini B. Numerical methods for structured Markov chains pp. 188-189.
-                const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* A_m = &(process->all_A_minus().back());
-                const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* A_0 = &(process->all_A_0().back());
-                const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* A_p = &(process->all_A_plus().back());
+                const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* A_m = &(process.all_A_minus().back());
+                const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* A_0 = &(process.all_A_0().back());
+                const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* A_p = &(process.all_A_plus().back());
                 Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> T = -(A_0->colPivHouseholderQr().inverse());
                 Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> V_m = T * (*A_m);
                 Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> V_p = T * (*A_p);
@@ -120,60 +120,60 @@ namespace libQBD
             }
             // Determine number of equations:
             Eigen::Index matrix_len = 0;
-            for(auto it = process->all_A_0().begin(); it != (process->all_A_0().end()-1); it++){
+            for(auto it = process.all_A_0().begin(); it != (process.all_A_0().end()-1); it++){
                 matrix_len += it->rows();
             }
-            std::size_t pos = process->all_A_0().size() - 1;
-            for(;pos < process->all_A_plus().size() - 1; pos++){
-                matrix_len += process->all_A_plus()[pos].rows();
+            std::size_t pos = process.all_A_0().size() - 1;
+            for(;pos < process.all_A_plus().size() - 1; pos++){
+                matrix_len += process.all_A_plus()[pos].rows();
             }
-            for(;pos < process->all_A_minus().size(); pos++){
-                matrix_len += process->all_A_minus()[pos - 1].rows();
+            for(;pos < process.all_A_minus().size(); pos++){
+                matrix_len += process.all_A_minus()[pos - 1].rows();
             }
             Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> B = R.Zero(matrix_len, matrix_len);
             // Number of unique levels:
-            std::size_t c = std::max(std::max(process->all_A_minus().size() + 1, process->all_A_0().size()), process->all_A_plus().size()) - 2;
+            std::size_t c = std::max(std::max(process.all_A_minus().size() + 1, process.all_A_0().size()), process.all_A_plus().size()) - 2;
             // First block row:
-            B.block(0,0,process->all_A_0()[0].rows(), process->all_A_0()[0].cols()) = process->all_A_0()[0];
-            B.block(0, process->all_A_0()[0].cols(),process->all_A_plus()[0].rows(), process->all_A_plus()[0].cols()) = process->all_A_plus()[0];
+            B.block(0,0,process.all_A_0()[0].rows(), process.all_A_0()[0].cols()) = process.all_A_0()[0];
+            B.block(0, process.all_A_0()[0].cols(),process.all_A_plus()[0].rows(), process.all_A_plus()[0].cols()) = process.all_A_plus()[0];
             // Blocks from 1 to c-1 
-            unsigned int A_0_pos = (1 < process->all_A_0().size() ? 1 : 0);
-            unsigned int A_p_pos = (1 < process->all_A_plus().size() ? 1 : 0);
+            unsigned int A_0_pos = (1 < process.all_A_0().size() ? 1 : 0);
+            unsigned int A_p_pos = (1 < process.all_A_plus().size() ? 1 : 0);
             unsigned int A_m_pos = 0;
             Eigen::Index x = 0;
-            Eigen::Index y = process->all_A_0()[0].rows();
+            Eigen::Index y = process.all_A_0()[0].rows();
             for(unsigned int k = 1; k < c; k++){
-                B.block(y, x, process->all_A_minus()[A_m_pos].rows(),
-                              process->all_A_minus()[A_m_pos].cols()) = process->all_A_minus()[A_m_pos];
-                x += process->all_A_minus()[A_m_pos].cols();
-                B.block(y, x, process->all_A_0()[A_0_pos].rows(),
-                              process->all_A_0()[A_0_pos].cols()) = process->all_A_0()[A_0_pos];
-                B.block(y, x + process->all_A_0()[A_0_pos].cols(),
-                        process->all_A_plus()[A_p_pos].rows(),
-                        process->all_A_plus()[A_p_pos].cols()) = process->all_A_plus()[A_p_pos];
-                y += process->all_A_minus()[A_m_pos].rows();
+                B.block(y, x, process.all_A_minus()[A_m_pos].rows(),
+                              process.all_A_minus()[A_m_pos].cols()) = process.all_A_minus()[A_m_pos];
+                x += process.all_A_minus()[A_m_pos].cols();
+                B.block(y, x, process.all_A_0()[A_0_pos].rows(),
+                              process.all_A_0()[A_0_pos].cols()) = process.all_A_0()[A_0_pos];
+                B.block(y, x + process.all_A_0()[A_0_pos].cols(),
+                        process.all_A_plus()[A_p_pos].rows(),
+                        process.all_A_plus()[A_p_pos].cols()) = process.all_A_plus()[A_p_pos];
+                y += process.all_A_minus()[A_m_pos].rows();
 
-                A_m_pos = (A_m_pos + 1 < process->all_A_minus().size() ? A_m_pos + 1 : A_m_pos);
-                A_0_pos = (A_0_pos + 1 < process->all_A_0().size() ? A_0_pos + 1 : A_0_pos);
-                A_p_pos = (A_p_pos + 1 < process->all_A_plus().size() ? A_p_pos + 1 : A_p_pos);
+                A_m_pos = (A_m_pos + 1 < process.all_A_minus().size() ? A_m_pos + 1 : A_m_pos);
+                A_0_pos = (A_0_pos + 1 < process.all_A_0().size() ? A_0_pos + 1 : A_0_pos);
+                A_p_pos = (A_p_pos + 1 < process.all_A_plus().size() ? A_p_pos + 1 : A_p_pos);
             }
             // Determine c level of model:
             const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> *A_0_c, *A_minus_c;
-            if(process->all_A_0().size() == c + 2){
-                A_0_c = &(*(process->all_A_0().end()-2));
+            if(process.all_A_0().size() == c + 2){
+                A_0_c = &(*(process.all_A_0().end()-2));
             } else {
-                A_0_c = &(process->all_A_0().back());
+                A_0_c = &(process.all_A_0().back());
             }
-            if(process->all_A_minus().size() + 1 == c + 2){
-                A_minus_c = &(*(process->all_A_minus().end()-2));
+            if(process.all_A_minus().size() + 1 == c + 2){
+                A_minus_c = &(*(process.all_A_minus().end()-2));
             }else{
-                A_minus_c = &(process->all_A_minus().back());
+                A_minus_c = &(process.all_A_minus().back());
             }
             // Insert last 2 blocks:
             computate_R();
-            B.bottomRightCorner(process->all_A_minus().back().rows(), process->all_A_minus().back().cols()) = *A_0_c + R * process->all_A_minus().back();
-            B.block(B.rows() - process->all_A_minus().back().rows(),
-                    B.cols() - process->all_A_minus().back().cols() - A_minus_c->cols(),
+            B.bottomRightCorner(process.all_A_minus().back().rows(), process.all_A_minus().back().cols()) = *A_0_c + R * process.all_A_minus().back();
+            B.block(B.rows() - process.all_A_minus().back().rows(),
+                    B.cols() - process.all_A_minus().back().cols() - A_minus_c->cols(),
                     A_minus_c->rows(), 
                     A_minus_c->cols()) = *A_minus_c;
             // Normalization condition:
@@ -192,10 +192,10 @@ namespace libQBD
             std::size_t k = 0;
             do{
                 Eigen::Index l = r;
-                if(k < process->all_A_0().size()){
-                    r += process->all_A_0()[k].rows();
+                if(k < process.all_A_0().size()){
+                    r += process.all_A_0()[k].rows();
                 }else{
-                    r += process->all_A_0().back().rows();
+                    r += process.all_A_0().back().rows();
                 }
                 pi_0_c.push_back(dist.middleCols(l, r - l));
                 k++;
@@ -204,6 +204,18 @@ namespace libQBD
         }
 
     public:
+        
+        StationaryDistribution()
+        {
+
+        }
+        // Associates a stationary distribution calculation class with a process.
+        // @param proc is a model description.
+        StationaryDistribution(QBD<matrix_element_type> &proc)
+        {
+            bind(proc);
+        }
+        
         // Associates a stationary distribution calculation class with a process.
         // @param proc is a model description.
         void bind(QBD<matrix_element_type> &proc)
@@ -214,7 +226,7 @@ namespace libQBD
             is_pi_0_c_computated = false;
             is_mean_clients_computated = false;
             is_sum_from_c_to_inf_computated = false;
-            this->process = &proc;
+            this->process = proc;
         }
 
         // Returns rho calculated from Neuts ergodicity criteria.
