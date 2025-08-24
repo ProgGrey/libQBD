@@ -295,7 +295,10 @@ namespace libQBD
                     res.push_back((vec[k-2]*get_A_plus(k-2) + vec[k-1]*get_A_0(k-1) + vec[k]*get_A_minus(k))*cons);
                 }
                 res.push_back((vec[k-2]*get_A_plus(k-2) + vec[k-1]*get_A_0(k-1))*cons);
-                res.push_back((vec[k-1]*get_A_plus(k-1))*cons);
+                auto tmp = (vec[k-1]*get_A_plus(k-1))*cons;
+                if (tmp.template lpNorm<1>() > matrix_element_type(0.0)){
+                    res.push_back(tmp);
+                }
             }else if(vec.size() == 2){
                 res.push_back((vec[0]*get_A_0(0) + vec[1]*get_A_minus(1))*cons);
                 res.push_back((vec[0]*get_A_plus(0) + vec[1]*get_A_0(1))*cons);
