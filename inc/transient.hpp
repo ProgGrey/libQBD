@@ -746,7 +746,7 @@ namespace libQBD
             return num;
         }
 
-        void check(void)
+        void check(void) const
         {
             if(!is_binded){
                 throw libQBD_exception("Not binded to the process.");
