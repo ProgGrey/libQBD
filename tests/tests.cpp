@@ -329,10 +329,19 @@ BOOST_AUTO_TEST_CASE(adaptive_taylor)
 	// c level:
 	process.add_level(mu,lambda);
 
-	double target_error = 1e-6;
-	TaylorSeriesAdaptive<double> solution(process,pi0, target_error, 10);
+	double target_error = 1e-7;
+	TaylorSeriesAdaptive<double> solution(process,pi0, target_error, 5);
 
-	//Probabilities in first 3 states (~10 sure signs):
+	/*
+	auto ref = solution.get_reference_dists();
+	cout.precision(15);
+	for(size_t k = 0; k < ref.size(); k++){
+		cout << ref[k][0] << ',';
+	}
+	cout << endl;
+	*/
+
+	//Probabilities in first 3 states (~8 sure signs):
 	double p0[1001] = {1., 0.9901481850, 0.9805856278, 0.9713019792, 0.9622873030, 0.9535320572, 0.9450270790, 0.9367635665, 0.9287330655, 0.9209274522, 0.9133389235, 0.9059599788, 0.8987834112, 
 		0.8918022910, 0.8850099590, 0.8784000112, 0.8719662908, 0.8657028760, 0.8596040715, 0.8536643990, 0.8478785870, 0.8422415655, 0.8367484535, 0.8313945538, 0.8261753460, 0.8210864762,
 		0.8161237558, 0.8112831478, 0.8065607660, 0.8019528670, 0.7974558450, 0.7930662245, 0.7887806585, 0.7845959188, 0.7805088965, 0.7765165920, 0.7726161158, 0.7688046795, 0.7650795952, 
@@ -586,4 +595,17 @@ BOOST_AUTO_TEST_CASE(adaptive_taylor)
 	}
 
 	BOOST_CHECK(target_error > error);
+
+	/*
+	auto clients = [](size_t level, Eigen::Index length) -> Eigen::VectorX<double>{
+		Eigen::VectorX<double> res = Eigen::VectorX<double>::Ones(length);
+		return res*level;
+	};
+	
+	auto mean_cl = function_of_dist<double>(res, clients);
+	for(auto it = mean_cl.begin(); it != mean_cl.end(); it++){
+		cout << *it << ", ";
+	}
+	cout << '\n';
+	//*/
 }
