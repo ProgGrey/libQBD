@@ -37,7 +37,7 @@ namespace libQBD
 
     namespace internal{
         template<typename matrix_element_type>
-        class  QBDData{
+        struct QBDData{
             public:
             // Matrices, that describes generator matrix of QBD process
             std::vector<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>> A_plus;
