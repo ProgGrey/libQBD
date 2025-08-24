@@ -36,7 +36,7 @@
 namespace libQBD
 {
     template<typename matrix_element_type>
-    std::vector<matrix_element_type> function_of_dist(const std::vector<std::vector<Eigen::VectorX<matrix_element_type>>> &dist, 
+    std::vector<matrix_element_type> function_of_dists(const std::vector<std::vector<Eigen::VectorX<matrix_element_type>>> &dist, 
                                                       std::function<Eigen::VectorX<matrix_element_type>(size_t, Eigen::Index)> func)
     {
         std::vector<matrix_element_type> res;
@@ -48,6 +48,17 @@ namespace libQBD
             res.push_back(scal_mull);
         }
         return res;
+    }
+
+    template<typename matrix_element_type>
+    matrix_element_type function_of_dist(const std::vector<Eigen::VectorX<matrix_element_type>> &dist, 
+                                         std::function<Eigen::VectorX<matrix_element_type>(size_t, Eigen::Index)> func)
+    {
+        matrix_element_type scal_mull = matrix_element_type(0.0);
+        for(size_t k = 0; k < dist.size(); k++){
+            scal_mull += dist[k].dot(func(k, dist[k].rows()));
+        }
+        return scal_mull;
     }
 
     namespace internal
