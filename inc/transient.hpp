@@ -754,6 +754,11 @@ namespace libQBD
         }
         public:
         
+        TaylorSeriesAdaptive()
+        {
+            
+        }
+
         /* Bind class with process
             @param proc is a qbd process in continious time
             @param pi0 is a distribution at time 0
