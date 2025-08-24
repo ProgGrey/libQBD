@@ -11,6 +11,7 @@
 #include "base.hpp"
 #include <type_traits>
 #include <algorithm>
+#include <functional>
 #include <boost/math/special_functions/gamma.hpp>
 #include <boost/math/special_functions.hpp>
 
@@ -34,6 +35,21 @@
 
 namespace libQBD
 {
+    template<typename matrix_element_type>
+    std::vector<matrix_element_type> function_of_dist(const std::vector<std::vector<Eigen::VectorX<matrix_element_type>>> &dist, 
+                                                      std::function<Eigen::VectorX<matrix_element_type>(size_t, Eigen::Index)> func)
+    {
+        std::vector<matrix_element_type> res;
+        for(size_t k = 0; k < dist.size(); k++){
+            matrix_element_type scal_mull = matrix_element_type(0.0);
+            for(size_t j =0; j < dist[k].size(); j++){
+                scal_mull += dist[k][j].dot(func(j, dist[k][j].rows()));
+            }
+            res.push_back(scal_mull);
+        }
+        return res;
+    }
+
     namespace internal
     {
         template<typename T>
@@ -628,6 +644,7 @@ namespace libQBD
         //[point][n+1-th derivaty][level]
         std::vector<std::vector<std::vector<Eigen::VectorX<matrix_element_type>>>> derivs_in_ref_points;
         std::vector<matrix_element_type> ref_points;
+        std::vector<matrix_element_type> clients_in_ref_points;
         matrix_element_type min_elem;
         matrix_element_type error;
 
@@ -682,7 +699,7 @@ namespace libQBD
                 matrix_element_type er;
                 matrix_element_type delta_m = d;
                 matrix_element_type norm;
-                matrix_element_type delta_inv = matrix_element_type(0.5)/d;
+                matrix_element_type delta_inv = matrix_element_type(0.5)  ;
                 matrix_element_type delta_minus_n = delta_inv;
                 matrix_element_type min_elem_inv = matrix_element_type(1.0)/min_elem;
                 do{
@@ -719,17 +736,52 @@ namespace libQBD
             }
         }
 
+        size_t find_max_le_t(matrix_element_type t, size_t num)
+        {
+            auto it = std::lower_bound(ref_points.begin() + static_cast<typename std::vector<matrix_element_type>::difference_type>(num), ref_points.end(), t);
+            num = static_cast<size_t>(std::distance(ref_points.begin(), it));
+            if(t < ref_points[num]){
+                num--;
+            }
+            return num;
+        }
+
+        void check(void)
+        {
+            if(!is_binded){
+                throw libQBD_exception("Not binded to the process.");
+            }
+        }
         public:
         
+        /* Bind class with process
+            @param proc is a qbd process in continious time
+            @param pi0 is a distribution at time 0
+            @param error is a upper bound for local error, i.e. ||pi(h) - pi^{(1)}||_{inf} <= error
+            @param max_time is a maximum time for which you want to calculate the distribution during initialization
+            @param approx_type is a interpolation method. Possible values are LIBQBD_APPROX_TAYLOR(k) where k>=1 and LIBQBD_APPROX_TAYLOR_UNLIM. LIBQBD_APPROX_TAYLOR(k) determines the max degree of Taylor's polinomial.
+            @param strategy determines what is more important - speed or the amount of memory consumed. Possible values are LIBQBD_STRATEGY_LOWRAM, LIBQBD_STRATEGY_FAST and LIBQBD_STRATEGY_MAXDATA(x), where x is a amount of information cached for further calculations.
+        */
         TaylorSeriesAdaptive(const QBD<matrix_element_type> &proc, const std::vector<Eigen::VectorX<matrix_element_type>> &pi0, double error, matrix_element_type max_time,
                              unsigned int approx_type = LIBQBD_APPROX_TAYLOR_UNLIM, unsigned int strategy = LIBQBD_STRATEGY_FAST)
         {
             bind(proc, pi0, error, max_time, approx_type, strategy);
         }
 
+        /* Bind class with process
+            @param proc is a qbd process in continious time
+            @param pi0 is a distribution at time 0
+            @param error is a upper bound for local error, i.e. ||pi(h) - pi^{(1)}||_{inf} <= error
+            @param max_time is a maximum time for which you want to calculate the distribution during initialization
+            @param approx_type is a interpolation method. Possible values are LIBQBD_APPROX_TAYLOR(k) where k>=1 and LIBQBD_APPROX_TAYLOR_UNLIM. LIBQBD_APPROX_TAYLOR(k) determines the max degree of Taylor's polinomial.
+            @param strategy determines what is more important - speed or the amount of memory consumed. Possible values are LIBQBD_STRATEGY_LOWRAM, LIBQBD_STRATEGY_FAST and LIBQBD_STRATEGY_MAXDATA(x), where x is a amount of information cached for further calculations.
+        */
         void bind(const QBD<matrix_element_type> &proc, const std::vector<Eigen::VectorX<matrix_element_type>> &pi0, double error, matrix_element_type max_time,
                              unsigned int approx_type = LIBQBD_APPROX_TAYLOR_UNLIM, unsigned int strategy = LIBQBD_STRATEGY_FAST)
         {
+            if(is_binded){
+                throw libQBD_exception("Already binded.");
+            }
             min_elem = -proc.get_min_element();
             this->proc = proc;
             dist_in_ref_points.push_back(pi0);
@@ -740,39 +792,42 @@ namespace libQBD
             while(ref_points.back() < max_time){
                 next_point(internal::get_max_factor<matrix_element_type>());
             }
+            is_binded = true;
         }
 
+        // Returns reference times.
         const std::vector<matrix_element_type> & get_reference_times(void) const
         {
+            check();
             return ref_points;
         }
 
+        // Returns distributions at reference times.
         const std::vector<std::vector<Eigen::VectorX<matrix_element_type>>> & get_reference_dists(void) const
         {
+            check();
             return dist_in_ref_points;
         }
         
+        /* Calculate distributions
+           @param dist - where to save calculation results
+           @param times is a moments of time at which the distribution must be calculated. Must be sorted in ascending order.
+           @param errors is a error estimation for distribution. If nullptr is passed, errors are calculated but not stored.
+        */
         void get_dist(std::vector<std::vector<Eigen::VectorX<matrix_element_type>>> &dist, const std::vector<matrix_element_type> &times, std::vector<matrix_element_type> *errors =nullptr)
         {
+            check();
             while(ref_points.back() < times.back()){
                 next_point(internal::get_max_factor<matrix_element_type>());
             }
-            auto it = std::lower_bound(ref_points.begin(), ref_points.end(), times[0]);
-            size_t num = static_cast<size_t>(std::distance(ref_points.begin(), it));
-            if(times[0] < ref_points[num]){
-                num--;
-            }
+            size_t num = find_max_le_t(times[0], 0);
             std::vector<matrix_element_type> norm_times;
             for(matrix_element_type t : times){
                 matrix_element_type reg = (t-ref_points[num])*min_elem;
                 if(reg > matrix_element_type(1.0)){
                     calc_intermed_points(dist, errors, norm_times, num);
                     norm_times.clear();
-                    it = std::lower_bound(ref_points.begin() + static_cast<typename std::vector<matrix_element_type>::difference_type>(num), ref_points.end(), t);
-                    num = static_cast<size_t>(std::distance(ref_points.begin(), it));
-                    if(t < ref_points[num]){
-                        num--;
-                    }
+                    num = find_max_le_t(t, num);
                     reg = (t-ref_points[num])*min_elem;
                 }
                 norm_times.push_back(reg);
@@ -782,11 +837,33 @@ namespace libQBD
             }
         }
 
+        /* Calculate distributions
+           @param times is a moments of time at which the distribution must be calculated. Must be sorted in ascending order.
+           @param errors is a error estimation for distribution. If nullptr is passed, errors are calculated but not stored.
+        */
         std::vector<std::vector<Eigen::VectorX<matrix_element_type>>> get_dist(const std::vector<matrix_element_type> &times, std::vector<matrix_element_type> *errors =nullptr)
         {
             std::vector<std::vector<Eigen::VectorX<matrix_element_type>>> res;
             get_dist(res, times, errors);
             return res;
+        }
+
+        // Returns mean clients at reference times.
+        const std::vector<matrix_element_type> & get_reference_mean_clients(void)
+        {
+            check();
+            if(clients_in_ref_points.size() < ref_points.size()){
+                auto clients = [](size_t level, Eigen::Index length) -> Eigen::VectorX<double>{
+                    Eigen::VectorX<double> res = Eigen::VectorX<double>::Ones(length);
+                    return res*level;
+                };
+                size_t start = clients_in_ref_points.size();
+                size_t end  = ref_points.size();
+                for(size_t k = start; k < end; k++){
+                    clients_in_ref_points.push_back(function_of_dist<matrix_element_type>(dist_in_ref_points[k], clients));
+                }
+            }
+            return clients_in_ref_points;
         }
 
     };
