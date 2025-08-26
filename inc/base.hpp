@@ -289,23 +289,23 @@ namespace libQBD
         {
             std::vector<Eigen::VectorX<matrix_element_type>> res;
             if(vec.size() >= 3){
-                res.push_back((vec[0]*get_A_0(0) + vec[1]*get_A_minus(1))*cons);
+                res.push_back((vec[0].transpose()*get_A_0(0) + vec[1].transpose()*get_A_minus(1))*cons);
                 size_t k = 2;
                 for(; k < vec.size(); k++){
-                    res.push_back((vec[k-2]*get_A_plus(k-2) + vec[k-1]*get_A_0(k-1) + vec[k]*get_A_minus(k))*cons);
+                    res.push_back((vec[k-2].transpose()*get_A_plus(k-2) + vec[k-1].transpose()*get_A_0(k-1) + vec[k].transpose()*get_A_minus(k))*cons);
                 }
-                res.push_back((vec[k-2]*get_A_plus(k-2) + vec[k-1]*get_A_0(k-1))*cons);
-                auto tmp = (vec[k-1]*get_A_plus(k-1))*cons;
+                res.push_back((vec[k-2].transpose()*get_A_plus(k-2) + vec[k-1].transpose()*get_A_0(k-1))*cons);
+                auto tmp = (vec[k-1].transpose()*get_A_plus(k-1))*cons;
                 if (tmp.template lpNorm<1>() > matrix_element_type(0.0)){
                     res.push_back(tmp);
                 }
             }else if(vec.size() == 2){
-                res.push_back((vec[0]*get_A_0(0) + vec[1]*get_A_minus(1))*cons);
-                res.push_back((vec[0]*get_A_plus(0) + vec[1]*get_A_0(1))*cons);
-                res.push_back((vec[1]*get_A_plus(0))*cons);
+                res.push_back((vec[0].transpose()*get_A_0(0) + vec[1].transpose()*get_A_minus(1))*cons);
+                res.push_back((vec[0].transpose()*get_A_plus(0) + vec[1].transpose()*get_A_0(1))*cons);
+                res.push_back((vec[1].transpose()*get_A_plus(0))*cons);
             }else if(vec.size() == 1){
-                res.push_back((vec[0]*get_A_0(0))*cons);
-                res.push_back((vec[0]*get_A_plus(0))*cons);
+                res.push_back((vec[0].transpose()*get_A_0(0))*cons);
+                res.push_back((vec[0].transpose()*get_A_plus(0))*cons);
             }else{
                 throw libQBD_exception("An empty vector was passed.");
             }
