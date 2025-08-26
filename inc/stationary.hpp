@@ -109,6 +109,7 @@ namespace libQBD
             if(pi_0_c.size() > 0){
                 return;
             }
+            throw libQBD_exception("Not implemented yet.");
             computate_rho();
             if(rho >= 1){
                 throw libQBD_exception("rho is equal or greater than 1.");
