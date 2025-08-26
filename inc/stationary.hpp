@@ -28,23 +28,18 @@ namespace libQBD
         bool is_rho_computated = false;
 
         // Matrices G R for process
-        Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> R;
-        Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> G;
-
-        bool is_R_computated = false;
-        bool is_G_computated = false;
+        std::shared_ptr<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>> R = nullptr;
+        std::shared_ptr<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>> G = nullptr;
 
         // Distribution for levels 0-c
         std::vector<Eigen::VectorX<matrix_element_type>> pi_0_c;
-        bool is_pi_0_c_computated = false;
 
         // mean clients
         matrix_element_type mean_cl;
         bool is_mean_clients_computated = false;
 
         //
-        Eigen::Matrix<matrix_element_type, 1, Eigen::Dynamic> sum_from_c_to_inf;
-        bool is_sum_from_c_to_inf_computated = false;
+        std::shared_ptr<Eigen::Matrix<matrix_element_type, 1, Eigen::Dynamic>> sum_from_c_to_inf = nullptr;
 
         void computate_rho(void)
         {
@@ -65,21 +60,21 @@ namespace libQBD
 
         void computate_R(void)
         {
-            if (!is_R_computated) {
+            if (this->R == nullptr) {
                 // R is calculated through its relationship with G.
                 // See Bini D., Latouche G., Meini B. Numerical methods for structured Markov chains pp. 126-128. 
                 computate_G();
                 const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* A_0 = &(process.all_A_0().back());
                 const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>* A_p = &(process.all_A_plus().back());
-                Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> U = -((*A_0) + (*A_p) * G);
-                R = (*A_p) * U.colPivHouseholderQr().inverse();
-                is_R_computated = true;
+                Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> U = -((*A_0) + (*A_p) * (*G));
+                Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> R = (*A_p) * U.colPivHouseholderQr().inverse();
+                this->R = std::make_shared<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>>(R);
             }
         }
 
         void computate_G(void)
         {
-            if (!is_G_computated) {
+            if (this->G == nullptr) {
                 computate_rho();
                 if(rho >= 1){
                     throw libQBD_exception("rho is equal or greater than 1.");
@@ -95,7 +90,7 @@ namespace libQBD
                 Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> I = T.Identity(T.rows(), T.cols());
                 Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> W = (I - V_m * V_p - V_p * V_m).colPivHouseholderQr().inverse();
                 Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> U = I;
-                G = V_m;
+                Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> G = V_m;
                 do {
                     U = U * V_p;
                     V_m = W * V_m * V_m;
@@ -105,13 +100,13 @@ namespace libQBD
                     G = G + U * V_m;
                     T -= G;
                 } while (std::max(-(T.minCoeff()),T.maxCoeff()) > LIBQBD_MAX_ERROR);
-                is_G_computated = true;
+                this->G = std::make_shared<Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>>(G);
             }
         }
         
         void computate_pi_0_c(void)
         {
-            if(is_pi_0_c_computated){
+            if(pi_0_c.size() > 0){
                 return;
             }
             computate_rho();
@@ -171,16 +166,16 @@ namespace libQBD
             }
             // Insert last 2 blocks:
             computate_R();
-            B.bottomRightCorner(process.all_A_minus().back().rows(), process.all_A_minus().back().cols()) = *A_0_c + R * process.all_A_minus().back();
+            B.bottomRightCorner(process.all_A_minus().back().rows(), process.all_A_minus().back().cols()) = *A_0_c + (*R) * process.all_A_minus().back();
             B.block(B.rows() - process.all_A_minus().back().rows(),
                     B.cols() - process.all_A_minus().back().cols() - A_minus_c->cols(),
                     A_minus_c->rows(), 
                     A_minus_c->cols()) = *A_minus_c;
             // Normalization condition:
-            auto I = R.Identity(R.rows(), R.cols());
-            auto Ones = R.Constant(R.rows(), 1, 1.0);
+            auto I = R->Identity(R->rows(), R->cols());
+            auto Ones = R->Constant(R->rows(), 1, 1.0);
             Eigen::Matrix<matrix_element_type, Eigen::Dynamic, 1> norm_eq = B.Constant(B.rows(), 1, 1.0);
-            norm_eq.bottomRightCorner(R.rows(), 1) = (I - R).colPivHouseholderQr().solve(Ones);
+            norm_eq.bottomRightCorner(R->rows(), 1) = (I - (*R)).colPivHouseholderQr().solve(Ones);
             // Distribution for first c levels:
             B.col(0) = norm_eq;
             Eigen::Matrix<matrix_element_type, Eigen::Dynamic, 1> right = B.Zero(B.rows(), 1);
@@ -200,7 +195,6 @@ namespace libQBD
                 pi_0_c.push_back(dist.middleCols(l, r - l));
                 k++;
             }while(r < dist.cols());
-            is_pi_0_c_computated = true;
         }
 
     public:
@@ -221,11 +215,6 @@ namespace libQBD
         void bind(QBD<matrix_element_type> &proc)
         {
             is_rho_computated = false;
-            is_R_computated = false;
-            is_G_computated = false;
-            is_pi_0_c_computated = false;
-            is_mean_clients_computated = false;
-            is_sum_from_c_to_inf_computated = false;
             this->process = proc;
         }
 
@@ -240,14 +229,14 @@ namespace libQBD
         Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> get_R(void)
         {
             computate_R();
-            return R;
+            return *R;
         }
 
         // Returns matrix G, i.e. minimal(in spectral sense) non-negative(componentwise) singular solution of equation A(-) + A(0) G + A(+) G^2 = 0
         Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> get_G(void)
         {
             computate_G();
-            return G;
+            return *G;
         }
 
         // Returns the distribution from zero level to the specified level.
@@ -262,7 +251,7 @@ namespace libQBD
             }
             Eigen::Matrix<matrix_element_type, 1, Eigen::Dynamic> pi = pi_0_c.back();
             for(; k <= max_level; k++){
-                pi *= R;
+                pi *= *R;
                 ret.push_back(pi);
             }
             return ret;
@@ -291,23 +280,23 @@ namespace libQBD
                 mean_cl += k * pi_0_c[k].sum();
             }
             computate_R();
-            Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> I = R.Identity(R.rows(), R.cols());
-            auto tmp = (I - R).colPivHouseholderQr().inverse();
+            Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> I = R->Identity(R->rows(), R->cols());
+            auto tmp = (I - (*R)).colPivHouseholderQr().inverse();
             Eigen::Matrix<matrix_element_type, 1, Eigen::Dynamic> pi = pi_0_c.back();
-            mean_cl += (pi * (R * tmp + (pi_0_c.size() - 1) * I) * tmp).sum();
+            mean_cl += (pi * ((*R) * tmp + (pi_0_c.size() - 1) * I) * tmp).sum();
             is_mean_clients_computated = true;
             return mean_cl;
         }
 
         // Returns the sum of distributions from level c to infinity.
         Eigen::VectorX<matrix_element_type> get_sum_from_c_to_inf(void){
-            if(!is_sum_from_c_to_inf_computated){
+            if(this->sum_from_c_to_inf == nullptr){
                 computate_pi_0_c();
-                Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> I = R.Identity(R.rows(), R.cols());
-                sum_from_c_to_inf = (I - R).transpose().colPivHouseholderQr().solve(pi_0_c.back());
-                is_sum_from_c_to_inf_computated = true;
+                Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> I = R->Identity(R->rows(), R->cols());
+                Eigen::Matrix<matrix_element_type, 1, Eigen::Dynamic> sum_from_c_to_inf = (I - (*R)).transpose().colPivHouseholderQr().solve(pi_0_c.back());
+                this->sum_from_c_to_inf = std::make_shared<Eigen::Matrix<matrix_element_type, 1, Eigen::Dynamic>>(sum_from_c_to_inf);
             }
-            return sum_from_c_to_inf;
+            return *sum_from_c_to_inf;
         }
 
         // Returns mean queue length.
@@ -323,11 +312,11 @@ namespace libQBD
             for(unsigned int k = 0; k < (pi_0_c.size() - 1); k++){
                 res += (pi_0_c[k] * queue_size_vector[k]).sum();
             }
-            Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> I = R.Identity(R.rows(), R.cols());
-            auto tmp = (I - R).transpose().colPivHouseholderQr();
+            Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> I = R->Identity(R->rows(), R->cols());
+            auto tmp = (I - (*R)).transpose().colPivHouseholderQr();
             Eigen::Matrix<matrix_element_type, Eigen::Dynamic, 1> pi = pi_0_c.back();
             res += (tmp.solve(pi)*queue_size_vector.back()).sum();
-            res += tmp.solve(tmp.solve((pi.transpose() * R).transpose())).sum();
+            res += tmp.solve(tmp.solve((pi.transpose() * (*R)).transpose())).sum();
             return res;
         }
     };
