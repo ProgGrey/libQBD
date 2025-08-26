@@ -290,6 +290,7 @@ namespace libQBD
             for(unsigned int k = 1; k < (pi_0_c.size() - 1); k++){
                 mean_cl += k * pi_0_c[k].sum();
             }
+            computate_R();
             Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> I = R.Identity(R.rows(), R.cols());
             auto tmp = (I - R).colPivHouseholderQr().inverse();
             Eigen::Matrix<matrix_element_type, 1, Eigen::Dynamic> pi = pi_0_c.back();
