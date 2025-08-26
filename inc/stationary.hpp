@@ -130,7 +130,7 @@ namespace libQBD
             for(;pos < process.all_A_minus().size(); pos++){
                 matrix_len += process.all_A_minus()[pos - 1].rows();
             }
-            Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> B = R.Zero(matrix_len, matrix_len);
+            Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> B = Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>::Zero(matrix_len, matrix_len);
             // Number of unique levels:
             std::size_t c = std::max(std::max(process.all_A_minus().size() + 1, process.all_A_0().size()), process.all_A_plus().size()) - 2;
             // First block row:
