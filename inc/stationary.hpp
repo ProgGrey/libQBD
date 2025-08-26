@@ -115,19 +115,12 @@ namespace libQBD
             }
             // Determine number of equations:
             Eigen::Index matrix_len = 0;
-            for(auto it = process.all_A_0().begin(); it != (process.all_A_0().end()-1); it++){
+            for(auto it = process.all_A_0().begin(); it != process.all_A_0().end()-1; it++){
                 matrix_len += it->rows();
-            }
-            std::size_t pos = process.all_A_0().size() - 1;
-            for(;pos < process.all_A_plus().size() - 1; pos++){
-                matrix_len += process.all_A_plus()[pos].rows();
-            }
-            for(;pos < process.all_A_minus().size(); pos++){
-                matrix_len += process.all_A_minus()[pos - 1].rows();
             }
             Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> B = Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>::Zero(matrix_len, matrix_len);
             // Number of unique levels:
-            std::size_t c = std::max(std::max(process.all_A_minus().size() + 1, process.all_A_0().size()), process.all_A_plus().size()) - 2;
+            std::size_t c = process.all_A_0().size()-1;
             // First block row:
             B.block(0,0,process.all_A_0()[0].rows(), process.all_A_0()[0].cols()) = process.all_A_0()[0];
             B.block(0, process.all_A_0()[0].cols(),process.all_A_plus()[0].rows(), process.all_A_plus()[0].cols()) = process.all_A_plus()[0];
@@ -154,16 +147,16 @@ namespace libQBD
             }
             // Determine c level of model:
             const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> *A_0_c, *A_minus_c;
-            if(process.all_A_0().size() == c + 2){
+            if(process.all_A_0().size() > 1){
                 A_0_c = &(*(process.all_A_0().end()-2));
             } else {
                 A_0_c = &(process.all_A_0().back());
             }
-            if(process.all_A_minus().size() + 1 == c + 2){
+            if(process.all_A_minus().size() > 1){
                 A_minus_c = &(*(process.all_A_minus().end()-2));
             }else{
                 A_minus_c = &(process.all_A_minus().back());
-            }
+            } 
             // Insert last 2 blocks:
             computate_R();
             B.bottomRightCorner(process.all_A_minus().back().rows(), process.all_A_minus().back().cols()) = *A_0_c + (*R) * process.all_A_minus().back();
