@@ -109,12 +109,67 @@ namespace libQBD
             if(pi_0_c.size() > 0){
                 return;
             }
-            throw libQBD_exception("Not implemented yet.");
             computate_rho();
             if(rho >= 1){
                 throw libQBD_exception("rho is equal or greater than 1.");
             }
+            std::vector<Eigen::MatrixX<matrix_element_type>> A0s = process.all_A_0();
+            // Determine number of unique levels
+            size_t c = A0s.size();
+            if (c == 0) {
+                throw libQBD_exception("Matrix Q is empty.");
+            }else if(c > 1){
+                c--;
+            }
+            c = c < 1 ? 1 : c;
+            std::cout <<  c << '\n';
             // Determine number of equations:
+            Eigen::Index matrix_len = 0;
+            for(size_t k = 0; k <= c; k++){
+                matrix_len += process.get_A_0(k).rows();
+            }
+            std::cout << "\nmatlen = " << matrix_len << "\n\n";
+            Eigen::MatrixX<matrix_element_type> B = Eigen::MatrixX<matrix_element_type>::Zero(matrix_len, matrix_len);
+            std::cout <<  B << '\n';
+            
+            // Copy zero level
+            B.block(0,0, process.get_A_0(0).rows(),process.get_A_0(0).cols()) = process.get_A_0(0);
+            B.block(0,process.get_A_0(0).cols(), process.get_A_plus(0).rows(),process.get_A_plus(0).cols()) = process.get_A_plus(0);
+            std::cout <<  B << '\n';
+            // Copy all levels from 1 to c-1:
+            Eigen::Index row_offset = process.get_A_0(0).rows();
+            Eigen::Index col_offset = 0;
+            for(size_t k = 1; k < c; k++){
+                B.block(row_offset, col_offset, process.get_A_minus(k).rows(), process.get_A_minus(k).cols()) = process.get_A_minus(k);
+                col_offset += process.get_A_minus(k).cols();
+                B.block(row_offset, col_offset, process.get_A_0(k).rows(), process.get_A_0(k).cols()) = process.get_A_0(k);
+                B.block(row_offset, col_offset + process.get_A_0(k).cols(), process.get_A_plus(k).rows(), process.get_A_plus(k).cols()) = process.get_A_plus(k);
+                row_offset += process.get_A_0(k).rows();
+            }
+            std::cout <<  B << '\n';
+            //Add c level 
+            B.block(row_offset, col_offset, process.get_A_minus(c).rows(), process.get_A_minus(c).cols()) = process.get_A_minus(c);
+            col_offset += process.get_A_minus(c).cols();
+            computate_R();
+            B.block(row_offset, col_offset, process.get_A_0(c).rows(), process.get_A_0(c).cols()) = process.get_A_0(c) + (*R) * process.get_A_minus(c+1);
+            std::cout <<  B << '\n';
+            //Add normalize condition
+            Eigen::Matrix<matrix_element_type, Eigen::Dynamic, 1> norm_eq = B.Constant(B.rows(), 1, 1.0);
+            auto I = R->Identity(R->rows(), R->cols());
+            auto Ones = R->Constant(R->rows(), 1, 1.0);
+            norm_eq.bottomRightCorner(R->rows(), 1) = (I - (*R)).colPivHouseholderQr().solve(Ones);
+            std::cout <<  norm_eq << '\n';
+            // Distribution for first c levels:
+            B.col(0) = norm_eq;
+            std::cout << B << '\n';
+            Eigen::Matrix<matrix_element_type, Eigen::Dynamic, 1> right = B.Zero(B.rows(), 1);
+            right(0,0) = 1.0;
+            Eigen::Matrix<matrix_element_type, 1, Eigen::Dynamic> dist = B.transpose().colPivHouseholderQr().solve(right).transpose();
+            dist = (dist.array() < 0).select(0, dist);
+            std::cout << dist << '\n';
+            throw libQBD_exception("Not implemented yet.");
+            /*
+            
             Eigen::Index matrix_len = 0;
             for(auto it = process.all_A_0().begin(); it != process.all_A_0().end()-1; it++){
                 matrix_len += it->rows();
@@ -189,6 +244,7 @@ namespace libQBD
                 pi_0_c.push_back(dist.middleCols(l, r - l));
                 k++;
             }while(r < dist.cols());
+            //*/
         }
 
     public:
