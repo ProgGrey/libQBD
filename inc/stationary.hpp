@@ -167,7 +167,19 @@ namespace libQBD
             Eigen::Matrix<matrix_element_type, 1, Eigen::Dynamic> dist = B.transpose().colPivHouseholderQr().solve(right).transpose();
             dist = (dist.array() < 0).select(0, dist);
             std::cout << dist << '\n';
-            throw libQBD_exception("Not implemented yet.");
+            // Slice vector into levels:
+            Eigen::Index r = 0;
+            std::size_t k = 0;
+            do{
+                Eigen::Index l = r;
+                if(k < process.all_A_0().size()){
+                    r += process.all_A_0()[k].rows();
+                }else{
+                    r += process.all_A_0().back().rows();
+                }
+                pi_0_c.push_back(dist.middleCols(l, r - l));
+                k++;
+            }while(r < dist.cols());
             /*
             
             Eigen::Index matrix_len = 0;
