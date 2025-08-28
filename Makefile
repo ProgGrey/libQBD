@@ -18,6 +18,9 @@ tests: test
 test: tests/tests.cpp inc/libQBD.hpp inc/base.hpp inc/stationary.hpp inc/transient.hpp
 	$(CXX) $(CXX_FLAGS) tests/tests.cpp -lboost_unit_test_framework  -std=c++17 -Og -fsanitize=address,undefined -ffp-contract=fast -march=native -o test
 
+mm1: examples/mm1.cpp inc/libQBD.hpp inc/base.hpp inc/stationary.hpp inc/transient.hpp
+	$(CXX) $(CXX_FLAGS) examples/mm1.cpp -O2 -march=native -o mm1
+
 clean:
 	rm test
 
