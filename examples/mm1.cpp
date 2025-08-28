@@ -33,6 +33,6 @@ int main()
     
     StationaryDistribution<double> sd;
     sd.bind(proc);
-    sd.get_mean_clients();
+    cout << "mean clients" <<  sd.get_mean_clients() << '\n';
     return 0;
 }
