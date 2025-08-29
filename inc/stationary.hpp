@@ -221,14 +221,14 @@ namespace libQBD
         }
 
         // Returns matrix R, i.e. minimal(in spectral sense) non-negative(componentwise) singular solution of equation R^2 A(-) + R A(0) + A(+) = 0
-        Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> get_R(void)
+        const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> & get_R(void)
         {
             computate_R();
             return *R;
         }
 
         // Returns matrix G, i.e. minimal(in spectral sense) non-negative(componentwise) singular solution of equation A(-) + A(0) G + A(+) G^2 = 0
-        Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> get_G(void)
+        const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> & get_G(void)
         {
             computate_G();
             return *G;
@@ -253,7 +253,7 @@ namespace libQBD
         }
 
         // Returns the distribution from level zero to level c
-        std::vector<Eigen::VectorX<matrix_element_type>> get_pi_0_c(void)
+        const std::vector<Eigen::VectorX<matrix_element_type>> & get_pi_0_c(void)
         {
             computate_pi_0_c();
             return pi_0_c;
