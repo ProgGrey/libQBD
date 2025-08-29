@@ -122,20 +122,20 @@ namespace libQBD
                 c--;
             }
             c = c < 1 ? 1 : c;
-            std::cout <<  c << '\n';
+            //std::cout <<  c << '\n';
             // Determine number of equations:
             Eigen::Index matrix_len = 0;
             for(size_t k = 0; k <= c; k++){
                 matrix_len += process.get_A_0(k).rows();
             }
-            std::cout << "\nmatlen = " << matrix_len << "\n\n";
+            //std::cout << "\nmatlen = " << matrix_len << "\n\n";
             Eigen::MatrixX<matrix_element_type> B = Eigen::MatrixX<matrix_element_type>::Zero(matrix_len, matrix_len);
-            std::cout <<  B << '\n';
+            //std::cout <<  B << '\n';
             
             // Copy zero level
             B.block(0,0, process.get_A_0(0).rows(),process.get_A_0(0).cols()) = process.get_A_0(0);
             B.block(0,process.get_A_0(0).cols(), process.get_A_plus(0).rows(),process.get_A_plus(0).cols()) = process.get_A_plus(0);
-            std::cout <<  B << '\n';
+            //std::cout <<  B << '\n';
             // Copy all levels from 1 to c-1:
             Eigen::Index row_offset = process.get_A_0(0).rows();
             Eigen::Index col_offset = 0;
@@ -146,117 +146,34 @@ namespace libQBD
                 B.block(row_offset, col_offset + process.get_A_0(k).cols(), process.get_A_plus(k).rows(), process.get_A_plus(k).cols()) = process.get_A_plus(k);
                 row_offset += process.get_A_0(k).rows();
             }
-            std::cout <<  B << '\n';
+            //std::cout <<  B << '\n';
             //Add c level 
             B.block(row_offset, col_offset, process.get_A_minus(c).rows(), process.get_A_minus(c).cols()) = process.get_A_minus(c);
             col_offset += process.get_A_minus(c).cols();
             computate_R();
             B.block(row_offset, col_offset, process.get_A_0(c).rows(), process.get_A_0(c).cols()) = process.get_A_0(c) + (*R) * process.get_A_minus(c+1);
-            std::cout <<  B << '\n';
+            //std::cout <<  B << '\n';
             //Add normalize condition
             Eigen::Matrix<matrix_element_type, Eigen::Dynamic, 1> norm_eq = B.Constant(B.rows(), 1, 1.0);
             auto I = R->Identity(R->rows(), R->cols());
             auto Ones = R->Constant(R->rows(), 1, 1.0);
             norm_eq.bottomRightCorner(R->rows(), 1) = (I - (*R)).colPivHouseholderQr().solve(Ones);
-            std::cout <<  norm_eq << '\n';
+            //std::cout <<  norm_eq << '\n';
             // Distribution for first c levels:
             B.col(0) = norm_eq;
-            std::cout << B << '\n';
+            ///std::cout << B << '\n';
             Eigen::Matrix<matrix_element_type, Eigen::Dynamic, 1> right = B.Zero(B.rows(), 1);
             right(0,0) = 1.0;
             Eigen::Matrix<matrix_element_type, 1, Eigen::Dynamic> dist = B.transpose().colPivHouseholderQr().solve(right).transpose();
             dist = (dist.array() < 0).select(0, dist);
-            std::cout << dist << '\n';
+            //std::cout << "dist:" << dist << '\n';
             // Slice vector into levels:
             Eigen::Index r = 0;
-            std::size_t k = 0;
-            do{
+            for(std::size_t k=0; k <=c ;k++){
                 Eigen::Index l = r;
-                if(k < process.all_A_0().size()){
-                    r += process.all_A_0()[k].rows();
-                }else{
-                    r += process.all_A_0().back().rows();
-                }
+                r += process.get_A_0(k).rows();
                 pi_0_c.push_back(dist.middleCols(l, r - l));
-                k++;
-            }while(r < dist.cols());
-            /*
-            
-            Eigen::Index matrix_len = 0;
-            for(auto it = process.all_A_0().begin(); it != process.all_A_0().end()-1; it++){
-                matrix_len += it->rows();
             }
-            Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> B = Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic>::Zero(matrix_len, matrix_len);
-            // Number of unique levels:
-            std::size_t c = process.all_A_0().size()-1;
-            // First block row:
-            B.block(0,0,process.all_A_0()[0].rows(), process.all_A_0()[0].cols()) = process.all_A_0()[0];
-            B.block(0, process.all_A_0()[0].cols(),process.all_A_plus()[0].rows(), process.all_A_plus()[0].cols()) = process.all_A_plus()[0];
-            // Blocks from 1 to c-1 
-            unsigned int A_0_pos = (1 < process.all_A_0().size() ? 1 : 0);
-            unsigned int A_p_pos = (1 < process.all_A_plus().size() ? 1 : 0);
-            unsigned int A_m_pos = 0;
-            Eigen::Index x = 0;
-            Eigen::Index y = process.all_A_0()[0].rows();
-            for(unsigned int k = 1; k < c; k++){
-                B.block(y, x, process.all_A_minus()[A_m_pos].rows(),
-                              process.all_A_minus()[A_m_pos].cols()) = process.all_A_minus()[A_m_pos];
-                x += process.all_A_minus()[A_m_pos].cols();
-                B.block(y, x, process.all_A_0()[A_0_pos].rows(),
-                              process.all_A_0()[A_0_pos].cols()) = process.all_A_0()[A_0_pos];
-                B.block(y, x + process.all_A_0()[A_0_pos].cols(),
-                        process.all_A_plus()[A_p_pos].rows(),
-                        process.all_A_plus()[A_p_pos].cols()) = process.all_A_plus()[A_p_pos];
-                y += process.all_A_minus()[A_m_pos].rows();
-
-                A_m_pos = (A_m_pos + 1 < process.all_A_minus().size() ? A_m_pos + 1 : A_m_pos);
-                A_0_pos = (A_0_pos + 1 < process.all_A_0().size() ? A_0_pos + 1 : A_0_pos);
-                A_p_pos = (A_p_pos + 1 < process.all_A_plus().size() ? A_p_pos + 1 : A_p_pos);
-            }
-            // Determine c level of model:
-            const Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> *A_0_c, *A_minus_c;
-            if(process.all_A_0().size() > 1){
-                A_0_c = &(*(process.all_A_0().end()-2));
-            } else {
-                A_0_c = &(process.all_A_0().back());
-            }
-            if(process.all_A_minus().size() > 1){
-                A_minus_c = &(*(process.all_A_minus().end()-2));
-            }else{
-                A_minus_c = &(process.all_A_minus().back());
-            } 
-            // Insert last 2 blocks:
-            computate_R();
-            B.bottomRightCorner(process.all_A_minus().back().rows(), process.all_A_minus().back().cols()) = *A_0_c + (*R) * process.all_A_minus().back();
-            B.block(B.rows() - process.all_A_minus().back().rows(),
-                    B.cols() - process.all_A_minus().back().cols() - A_minus_c->cols(),
-                    A_minus_c->rows(), 
-                    A_minus_c->cols()) = *A_minus_c;
-            // Normalization condition:
-            auto I = R->Identity(R->rows(), R->cols());
-            auto Ones = R->Constant(R->rows(), 1, 1.0);
-            Eigen::Matrix<matrix_element_type, Eigen::Dynamic, 1> norm_eq = B.Constant(B.rows(), 1, 1.0);
-            norm_eq.bottomRightCorner(R->rows(), 1) = (I - (*R)).colPivHouseholderQr().solve(Ones);
-            // Distribution for first c levels:
-            B.col(0) = norm_eq;
-            Eigen::Matrix<matrix_element_type, Eigen::Dynamic, 1> right = B.Zero(B.rows(), 1);
-            right(0,0) = 1.0;
-            Eigen::Matrix<matrix_element_type, 1, Eigen::Dynamic> dist = B.transpose().colPivHouseholderQr().solve(right).transpose();
-            dist = (dist.array() < 0).select(0, dist);
-            // Slice vector into levels:
-            Eigen::Index r = 0;
-            std::size_t k = 0;
-            do{
-                Eigen::Index l = r;
-                if(k < process.all_A_0().size()){
-                    r += process.all_A_0()[k].rows();
-                }else{
-                    r += process.all_A_0().back().rows();
-                }
-                pi_0_c.push_back(dist.middleCols(l, r - l));
-                k++;
-            }while(r < dist.cols());
-            //*/
         }
 
     public:
@@ -365,6 +282,9 @@ namespace libQBD
         // @param queue_size_vector is a vectors containing the queue sizes for the first few levels.
         matrix_element_type get_mean_queue(const std::vector<Eigen::VectorX<matrix_element_type>> &queue_size_vector)
         {
+            if(queue_size_vector.size() != pi_0_c.size()){
+                throw libQBD_exception("You need to specify c first levels.");
+            }
             computate_rho();
             if(this->rho >= 1){
                 return INFINITY;
@@ -372,7 +292,7 @@ namespace libQBD
             matrix_element_type res = 0;
             computate_pi_0_c();
             for(unsigned int k = 0; k < (pi_0_c.size() - 1); k++){
-                res += (pi_0_c[k] * queue_size_vector[k]).sum();
+                res += (pi_0_c[k].transpose() * queue_size_vector[k]).sum();
             }
             Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> I = R->Identity(R->rows(), R->cols());
             auto tmp = (I - (*R)).transpose().colPivHouseholderQr();

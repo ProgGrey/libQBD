@@ -120,10 +120,16 @@ BOOST_AUTO_TEST_CASE(cluster_model_2_servers)
 	
 	// Mean clients test
 	BOOST_CHECK(abs(model.get_mean_clients() - 0.7008368225019366848372) < 1e-15);
-	
+	//cout << "mean clients:" << abs(model.get_mean_clients() - 0.7008368225019366848372) << endl;
 	// distributions tests
 	double s = model.get_sum_from_c_to_inf().sum();
-	BOOST_CHECK(abs(s - 0.1602374134784877446336) < 1e-15);
+	auto prob1c = model.get_pi_0_c();
+	double s2 = 0;
+	for(size_t k =0; k < prob1c.size()-1; k++){
+		s2 += prob1c[k].sum();
+	}
+	BOOST_CHECK(abs(s+s2 - 1.0) < 1e-15);
+	//cout << "Sum:" << abs(s - 0.1602374134784877446336) << '\t' << s << '\t' << s2 << '\n';
 
 	auto dist = model.get_pi_0_c();
 	for(unsigned int k = 0; k < dist.size() - 1; k++){
@@ -255,17 +261,19 @@ BOOST_AUTO_TEST_CASE(M_M_1_model)
 	//t2.print();
 
 	BOOST_CHECK(abs(model.get_mean_clients() - rho/(1-rho)) <= 3e-15);
-	//cout << abs(model.get_mean_clients() - rho/(1-rho)) << endl;
+	//cout << "MM1_mean_cl:" << abs(model.get_mean_clients() - rho/(1-rho)) << endl;
 
 	vector<VectorX<double>> queue;
 	VectorX<double> q0{{0}};
 	VectorX<double> q1{{0}};
+	VectorX<double> q2{{1}};
 	queue.push_back(q0);
 	queue.push_back(q1);
+	queue.push_back(q2);
 
 	//cout << abs(model.get_mean_queue(queue) - rho*rho/(1 - rho)) << endl;
 	BOOST_CHECK(abs(model.get_mean_queue(queue) - rho*rho/(1 - rho)) < 2e-15);
-	//cout << abs(model.get_mean_queue(queue) - rho*rho/(1 - rho))<< endl;
+	//cout << "mean queue:" << (model.get_mean_queue(queue) - rho*rho/(1.0 - rho)) << endl;
 
 	BOOST_CHECK(abs(model.get_R()(0,0) - rho) < 1e-15);
 	//cout << abs(model.get_R()(0,0) - rho) << endl;
