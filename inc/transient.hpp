@@ -221,7 +221,7 @@ namespace libQBD
             {
                 power = 0;
             }
-            
+
             explicit Q_in_pow(const QBD<matrix_element_type> &proc)
             {
                 process = proc;
@@ -267,6 +267,12 @@ namespace libQBD
                 free_memory();
             }
 
+            void check(void)
+            {
+                if(process.all_A_0().size() == 0) {
+                    throw libQBD_exception("Infinitesimal generator matrix is empty.");
+                }
+            }
             Q_in_pow<matrix_element_type> inc_power(matrix_element_type step)
             {
                 Q_in_pow<matrix_element_type> ret;
@@ -495,6 +501,7 @@ namespace libQBD
             if(is_process_not_binded){
                 throw libQBD_exception("Not binded to the process.");
             }
+            B.check();
         }
 
         void computate_right_matrix(uint8_t order)
@@ -659,6 +666,16 @@ namespace libQBD
         matrix_element_type min_elem;
         matrix_element_type error;
 
+        inline void check(void) const
+        {
+            if(!is_binded){
+                throw libQBD_exception("Not binded to the process.");
+            }
+            if(proc.all_A_0().size() == 0) {
+                throw libQBD_exception("Infinitesimal generator matrix is empty.");
+            }
+        }
+
 
         void next_point(uint_fast8_t n){
             /*The reference points are at the maximum possible distance. Therefore, delta is not used here. Considering that the computation
@@ -757,12 +774,6 @@ namespace libQBD
             return num;
         }
 
-        void check(void) const
-        {
-            if(!is_binded){
-                throw libQBD_exception("Not binded to the process.");
-            }
-        }
         public:
         
         TaylorSeriesAdaptive()

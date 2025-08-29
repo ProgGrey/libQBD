@@ -23,6 +23,7 @@ namespace libQBD
     {
     protected:
         QBD<matrix_element_type> process;
+        bool is_binded = false;
         
         matrix_element_type rho;
         bool is_rho_computated = false;
@@ -41,9 +42,20 @@ namespace libQBD
         //
         std::shared_ptr<Eigen::Matrix<matrix_element_type, 1, Eigen::Dynamic>> sum_from_c_to_inf = nullptr;
 
+        inline void check(void)
+        {
+            if(!is_binded){
+                throw libQBD_exception("Not binded to the process.");
+            }
+            if(process.all_A_0().size() == 0) {
+                throw libQBD_exception("Infinitesimal generator matrix is empty.");
+            }
+        }
+
         void computate_rho(void)
         {
             if(!is_rho_computated){
+                check();
                 // Neuts criteria
                 Eigen::Matrix<matrix_element_type, Eigen::Dynamic, Eigen::Dynamic> A = process.all_A_minus().back();
                 A += process.all_A_0().back();
@@ -61,6 +73,7 @@ namespace libQBD
         void computate_R(void)
         {
             if (this->R == nullptr) {
+                check();
                 // R is calculated through its relationship with G.
                 // See Bini D., Latouche G., Meini B. Numerical methods for structured Markov chains pp. 126-128. 
                 computate_G();
@@ -75,6 +88,7 @@ namespace libQBD
         void computate_G(void)
         {
             if (this->G == nullptr) {
+                check();
                 computate_rho();
                 if(rho >= 1){
                     throw libQBD_exception("rho is equal or greater than 1.");
@@ -106,6 +120,7 @@ namespace libQBD
         
         void computate_pi_0_c(void)
         {
+            check();
             if(pi_0_c.size() > 0){
                 return;
             }
@@ -117,7 +132,7 @@ namespace libQBD
             // Determine number of unique levels
             size_t c = A0s.size();
             if (c == 0) {
-                throw libQBD_exception("Matrix Q is empty.");
+                throw libQBD_exception("Generator matrix is empty.");
             }else if(c > 1){
                 c--;
             }
@@ -195,6 +210,7 @@ namespace libQBD
         {
             is_rho_computated = false;
             this->process = proc;
+            is_binded = true;
         }
 
         // Returns rho calculated from Neuts ergodicity criteria.
